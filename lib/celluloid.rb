@@ -216,6 +216,12 @@ module Celluloid
       end
     end
 
+    # Mark methods as running blocks on the receiver
+    def execute_block_on_receiver(*methods)
+      @receiver_block_executions ||= Set.new
+      @receiver_block_executions.merge methods.map(&:to_sym)
+    end
+
     # Configuration options for Actor#new
     def actor_options
       {
@@ -223,7 +229,8 @@ module Celluloid
         :proxy_class       => proxy_class,
         :task_class        => task_class,
         :exit_handler      => exit_handler,
-        :exclusive_methods => @exclusive_methods
+        :exclusive_methods => @exclusive_methods,
+        :receiver_block_executions => @receiver_block_executions || [:initialize, :after, :every, :receive]
       }
     end
 
@@ -459,6 +466,7 @@ require 'celluloid/proxies/abstract_proxy'
 require 'celluloid/proxies/actor_proxy'
 require 'celluloid/proxies/async_proxy'
 require 'celluloid/proxies/future_proxy'
+require 'celluloid/proxies/block_proxy'
 
 require 'celluloid/actor'
 require 'celluloid/future'
