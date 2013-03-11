@@ -16,6 +16,8 @@ module Celluloid
 
     def initialize(cause)
       @cause = cause
+      klass = cause.respond_to?(:__class__) ? cause.__class : cause.class
+      Scrolls.log(fn: "AbortError#initialize", at: "start", klass: klass.inspect)
       super "caused by #{cause.inspect}: #{cause.to_s}"
     end
   end
@@ -58,6 +60,21 @@ module Celluloid
 
       # Invoke a method on the given actor via its mailbox
       def call(mailbox, meth, *args, &block)
+        _call(mailbox, meth, args, block, :block_execution => :sender)
+      end
+
+      def _call(mailbox, meth, args, block, options = {})
+        current_task = Thread.current[:celluloid_task]
+        Scrolls.log(fn: "Actor._call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block, options: options.inspect)
+        #Scrolls.log(bt: caller.join("\n"))
+        if block && options.fetch(:block_execution) == :sender
+          Scrolls.log(fn: "Actor#_call", at: "block-proxy")
+          if Celluloid.exclusive?
+            # FIXME: nicer exception
+            raise "Cannot execute blocks on sender in exclusive mode"
+          end
+          block = BlockProxy.new(Thread.mailbox, block)
+        end
         call = SyncCall.new(Thread.mailbox, meth, args, block)
 
         begin
@@ -71,6 +88,11 @@ module Celluloid
 
       # Invoke a method asynchronously on an actor via its mailbox
       def async(mailbox, meth, *args, &block)
+        if block_given?
+          # FIXME: nicer exception
+          raise "Cannot use blocks with async yet"
+        end
+
         begin
           mailbox << AsyncCall.new(meth, args, block)
         rescue MailboxError
@@ -83,6 +105,10 @@ module Celluloid
 
       # Call a method asynchronously and retrieve its value later
       def future(mailbox, meth, *args, &block)
+        if block_given?
+          # FIXME: nicer exception
+          raise "Cannot use blocks with futures yet"
+        end
         future = Future.new
         future.execute(mailbox, meth, args, block)
         future
@@ -323,8 +349,19 @@ module Celluloid
       when SystemEvent
         handle_system_event message
       when Call
-        task(:message_handler, message.method) { message.dispatch(@subject) }
-      when Response
+        task(:call, message.method) {
+          Thread.current[:celluloid_owner] = message
+          r = message.dispatch(@subject)
+          Scrolls.log(fn: "Actor#handle_message", at: "call-done")
+          r
+        }
+      when InvokeBlock
+        task(:invoke_block) {
+          Scrolls.log(fn: "Actor#handle_message", message: "InvokeBlock", task: Thread.current[:celluloid_task].__id__)
+          Thread.current[:celluloid_owner] = message.task
+          message.dispatch
+        }
+      when BlockResponse, Response
         message.dispatch
       else
         @receivers.handle_message(message)
