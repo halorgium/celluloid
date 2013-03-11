@@ -15,7 +15,7 @@ module Celluloid
         if task = Thread.current[:celluloid_task]
           @mailbox << InvokeBlock.new(task, Actor.current.mailbox, @block, values)
           # TODO: if respond fails, the Task will never be resumed
-          Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-respond", task: task.inspect)
+          Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-respond", task: task.__id__)
           resp = Task.suspend(:invokeblock)
           Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-suspend", resp: resp.class)
           resp

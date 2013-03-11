@@ -24,6 +24,7 @@ describe Celluloid::Supervisor do
 
   it "restarts actors when they die" do
     supervisor = Celluloid::Supervisor.supervise(Subordinate, :idle)
+    Scrolls.log(fn: "supervisor_spec", line: __LINE__)
     subordinate = supervisor.actors.first
     subordinate.state.should == :idle
 

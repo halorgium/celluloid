@@ -57,10 +57,11 @@ module Celluloid
 
     # Start the group
     def initialize(registry = nil)
-      @members = []
       @registry = registry || Registry.root
+      @members = []
+      Scrolls.log(fn: "SupervisionGroup#initialize", id: __id__, members: @members.inspect)
 
-      yield self if block_given?
+      yield current_actor if block_given?
     end
 
     def supervise(klass, *args, &block)
@@ -77,12 +78,14 @@ module Celluloid
     end
 
     def add(klass, options)
+      Scrolls.log(fn: "SupervisionGroup#add", id: __id__, members: @members.inspect, klass: klass, options: options.inspect)
       member = Member.new(@registry, klass, options)
       @members << member
       member
     end
 
     def actors
+      Scrolls.log(fn: "SupervisionGroup#actors", id: __id__, members: @members.inspect)
       @members.map(&:actor)
     end
 
