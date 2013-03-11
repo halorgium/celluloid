@@ -3,13 +3,14 @@ require 'thread'
 require 'timeout'
 require 'set'
 
-require 'scrolls'
 module FakeLogging
   module Scrolls
     def self.log(*args)
     end
   end
 end
+Scrolls = FakeLogging::Scrolls
+require 'scrolls' unless defined?(Scrolls)
 
 require 'pry'
 trap("USR1") { binding.pry }
@@ -109,8 +110,9 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      proxy = Actor.new(allocate, actor_options).proxy
-      proxy._send_(:initialize, *args, &block)
+      actor = Actor.new(allocate, actor_options)
+      proxy = actor.proxy
+      Actor._call(actor.mailbox, :__send__, [:initialize, *args], block, :block_execution => :receiver)
       proxy
     end
     alias_method :spawn, :new
@@ -119,9 +121,10 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      proxy = Actor.new(allocate, actor_options).proxy
+      actor = Actor.new(allocate, actor_options)
+      proxy = actor.proxy
       Actor.link(proxy)
-      proxy._send_(:initialize, *args, &block)
+      Actor._call(actor.mailbox, :__send__, [:initialize, *args], block, :block_execution => :receiver)
       proxy
     end
     alias_method :spawn_link, :new_link
