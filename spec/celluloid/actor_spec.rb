@@ -127,21 +127,19 @@ describe Celluloid do
     actor.private_called.should be_true
   end
 
-=begin
   it "knows if it's inside actor scope" do
     Celluloid.should_not be_actor
     actor = actor_class.new "Troy McClure"
     # FIXME: need a syntax for this
-    #Celluloid::Actor.legacy_call(actor.mailbox, :run) do
-    #  Celluloid.actor?
-    #end.should be_true
+    Celluloid::Actor.call_with_blocks_executed_on_receiver(actor.mailbox, :run) do
+      Celluloid.actor?
+    end.should be_true
     actor.should be_actor
     # FIXME: the block is sent back to the calling mailbox, but it is associated with no Actor
     actor.run do
       Celluloid.actor?
     end.should be_false
   end
-=end
 
   it "inspects properly" do
     actor = actor_class.new "Troy McClure"
