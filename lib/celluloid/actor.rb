@@ -63,6 +63,10 @@ module Celluloid
         _call(mailbox, meth, args, block, :block_execution => :sender)
       end
 
+      def call_with_blocks_executed_on_receiver(mailbox, meth, *args, &block)
+        _call(mailbox, meth, args, block, :block_execution => :receiver)
+      end
+
       def _call(mailbox, meth, args, block, options = {})
         current_task = Thread.current[:celluloid_task]
         Scrolls.log(fn: "Actor._call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block, options: options.inspect)
