@@ -57,6 +57,8 @@ module Celluloid
       begin
         raise MailboxError, "attempted to receive from a dead mailbox" if @dead
 
+        Scrolls.log(fn: "Mailbox#receive", at: "locked", block: block.inspect)
+
         begin
           message = next_message(&block)
 
@@ -75,7 +77,7 @@ module Celluloid
           end
         end until message
 
-        Scrolls.log(fn: "Mailbox#receive", at: "locked", klass: message.class)
+        Scrolls.log(fn: "Mailbox#receive", at: "received", klass: message.class)
 
         message
       ensure
@@ -110,6 +112,7 @@ module Celluloid
     def shutdown
       @mutex.lock
       begin
+        Scrolls.log(fn: "Mailbox#shutdown", at: "locked", id: __id__)
         messages = @messages
         @messages = []
         @dead = true
