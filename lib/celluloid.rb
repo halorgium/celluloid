@@ -12,10 +12,6 @@ end
 Scrolls = FakeLogging::Scrolls
 require 'scrolls' unless defined?(Scrolls)
 
-require 'pry'
-trap("USR1") { binding.pry }
-trap("USR2") { Celluloid.stack_dump }
-
 module Celluloid
   extend self # expose all instance methods as singleton methods
 
