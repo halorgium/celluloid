@@ -27,7 +27,7 @@ module Celluloid
       Scrolls.log(fn: "Mailbox#<<", at: "lock-mutex", mailbox: __id__)
       @mutex.lock
       begin
-          Scrolls.log(fn: "Mailbox#<<", at: "locked", klass: message.class)
+        Scrolls.log(fn: "Mailbox#<<", at: "locked", klass: message.class)
         if message.is_a?(SystemEvent)
           # Silently swallow system events sent to dead actors
           return if @dead
@@ -74,6 +74,8 @@ module Celluloid
             @condition.wait(@mutex, wait_interval)
           end
         end until message
+
+        Scrolls.log(fn: "Mailbox#receive", at: "locked", klass: message.class)
 
         message
       ensure
