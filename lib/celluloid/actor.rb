@@ -68,7 +68,7 @@ module Celluloid
         Scrolls.log(fn: "Actor._call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block, options: options.inspect)
         #Scrolls.log(bt: caller.join("\n"))
         if block && options.fetch(:block_execution) == :sender
-          Scrolls.log(fn: "Actor#_call", at: "block-proxy")
+          Scrolls.log(fn: "Actor._call", at: "block-proxy")
           if Celluloid.exclusive?
             # FIXME: nicer exception
             raise "Cannot execute blocks on sender in exclusive mode"

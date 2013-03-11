@@ -54,6 +54,7 @@ module Celluloid
           Scrolls.log(fn: "#{self.class}#wait", at: "call-message", message: message.class)
           # FIXME: add check for receiver block execution
           if message.respond_to?(:value)
+            # FIXME: disable block execution if on :sender and (exclusive or outside of task)
             return message
           else
             value = block.call(*message.arguments)
@@ -133,12 +134,12 @@ module Celluloid
     attr_reader :task
 
     def dispatch
-      Scrolls.log(fn: "InvokeBlock#dispatch", block: @block.inspect, arguments: @arguments, current_task: Thread.current[:task])
-      Scrolls.log(task: @task.inspect, at: "before-call")
+      Scrolls.log(fn: "InvokeBlock#dispatch", block: @block.inspect, arguments: @arguments, current_task: Thread.current[:celluloid_task].__id__)
+      Scrolls.log(task: @task.__id__, at: "before-call")
       response = @block.call(*@arguments)
-      Scrolls.log(task: @task.inspect, at: "after-call")
+      Scrolls.log(task: @task.__id__, at: "after-call")
       @caller << BlockResponse.new(@task, response)
-      Scrolls.log(task: @task.inspect, at: "after-reply")
+      Scrolls.log(task: @task.__id__, at: "after-reply")
     end
   end
 
