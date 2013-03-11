@@ -66,7 +66,6 @@ module Celluloid
       def _call(mailbox, meth, args, block, options = {})
         current_task = Thread.current[:celluloid_task]
         Scrolls.log(fn: "Actor._call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block, options: options.inspect)
-        #Scrolls.log(bt: caller.join("\n"))
         if block && options.fetch(:block_execution) == :sender
           Scrolls.log(fn: "Actor._call", at: "block-proxy")
           if Celluloid.exclusive?
@@ -76,6 +75,8 @@ module Celluloid
           block = BlockProxy.new(Thread.mailbox, block)
         end
         call = SyncCall.new(Thread.mailbox, meth, args, block)
+        # FIXME: circular
+        block.call = call if block.respond_to?(:call=)
 
         begin
           mailbox << call
@@ -91,6 +92,7 @@ module Celluloid
             loop do
               Scrolls.log(fn: "Actor.call", at: "receive", current_task: current_task && current_task.__id__)
               message = Thread.mailbox.receive do |msg|
+                Scrolls.log(fn: "Actor.call", at: "receive.block", msg: msg.class, respond_to: msg.respond_to?(:call))
                 msg.respond_to?(:call) and msg.call == call
               end
               break message unless message.is_a?(SystemEvent)
@@ -104,8 +106,7 @@ module Celluloid
             # FIXME: disable block execution if on :sender and (exclusive or outside of task)
             return result.value
           else
-            value = block.call(*result.arguments)
-            mailbox << BlockResponse.new(call, value)
+            result.dispatch
           end
         end
       end
@@ -243,6 +244,7 @@ module Celluloid
 
       shutdown
     rescue Exception => ex
+      Scrolls.log(fn: "Actor#run", at: "rescue", ex: ex.inspect, bt: ex.backtrace.join("\n"))
       handle_crash(ex)
       raise unless ex.is_a? StandardError
     end
@@ -448,6 +450,7 @@ module Celluloid
 
     # Clean up after this actor
     def cleanup(exit_event)
+      Scrolls.log(fn: "Actor#cleanup", bt: caller.join("\n"))
       @mailbox.shutdown
       @links.each do |actor|
         begin

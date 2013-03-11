@@ -36,12 +36,8 @@ describe Celluloid do
   it "supports synchronous calls with blocks" do
     actor = actor_class.new "Blocky Ralboa"
 
-    Scrolls.log(file: __FILE__, line: __LINE__)
     block_executed = false
-    actor.run {
-      Scrolls.log(file: __FILE__, line: __LINE__)
-      block_executed = true
-    }
+    actor.run { block_executed = true }
     block_executed.should be_true
   end
 
