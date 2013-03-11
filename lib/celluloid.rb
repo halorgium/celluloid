@@ -3,6 +3,18 @@ require 'thread'
 require 'timeout'
 require 'set'
 
+require 'scrolls'
+module FakeLogging
+  module Scrolls
+    def self.log(*args)
+    end
+  end
+end
+
+require 'pry'
+trap("USR1") { binding.pry }
+trap("USR2") { Celluloid.stack_dump }
+
 module Celluloid
   extend self # expose all instance methods as singleton methods
 
@@ -449,6 +461,7 @@ require 'celluloid/proxies/abstract_proxy'
 require 'celluloid/proxies/actor_proxy'
 require 'celluloid/proxies/async_proxy'
 require 'celluloid/proxies/future_proxy'
+require 'celluloid/proxies/block_proxy'
 
 require 'celluloid/actor'
 require 'celluloid/future'

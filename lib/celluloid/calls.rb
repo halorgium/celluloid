@@ -5,10 +5,13 @@ module Celluloid
 
     def initialize(method, arguments = [], block = nil)
       @method, @arguments, @block = method, arguments, block
+      Scrolls.log(fn: "#{self.class}#initialize", at: "start", method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
     end
 
     def dispatch(obj)
-      obj.public_send(@method, *@arguments, &@block)
+      Scrolls.log(fn: "#{self.class}#dispatch", at: "start", obj: obj.class, method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
+      _block = @block && @block.to_proc
+      obj.public_send(@method, *@arguments, &_block)
     rescue NoMethodError => ex
       # Abort if the caller made a mistake
       raise AbortError.new(ex) unless obj.respond_to? @method
@@ -16,6 +19,7 @@ module Celluloid
       # Otherwise something blew up. Crash this actor
       raise
     rescue ArgumentError => ex
+      Scrolls.log(fn: "#{self.class}#dispatch", at: "rescue-ArgumentError", ex: ex.inspect)
       # Abort if the caller made a mistake
       begin
         arity = obj.method(@method).arity
@@ -75,6 +79,7 @@ module Celluloid
     rescue MailboxError
       # It's possible the caller exited or crashed before we could send a
       # response to them.
+      Scrolls.log(fn: "SyncCall#respond", at: "exception", exception: $!.inspect)
     end
   end
 
@@ -91,6 +96,39 @@ module Celluloid
       Thread.current[:celluloid_chain_id] = nil
     end
 
+  end
+
+  class InvokeBlock
+    def initialize(task, caller, block, arguments)
+      @task = task
+      @caller = caller
+      @block = block
+      @arguments = arguments
+      Scrolls.log(fn: "InvokeBlock#initialize", task: @task.inspect)
+    end
+    attr_reader :task
+
+    def dispatch
+      Scrolls.log(fn: "InvokeBlock#dispatch", block: @block.inspect, arguments: @arguments, current_task: Thread.current[:task])
+      Scrolls.log(task: @task.inspect, at: "before-call")
+      response = @block.call(*@arguments)
+      Scrolls.log(task: @task.inspect, at: "after-call")
+      @caller << BlockResponse.new(@task, response)
+      Scrolls.log(task: @task.inspect, at: "after-reply")
+    end
+  end
+
+  class BlockResponse
+    def initialize(task, result)
+      @task = task
+      @result = result
+      Scrolls.log(fn: "BlockResponse#initialize", task: @task.inspect)
+    end
+
+    def dispatch
+      Scrolls.log(fn: "BlockResponse", task: @task.inspect)
+      @task.resume(@result)
+    end
   end
 
 end
