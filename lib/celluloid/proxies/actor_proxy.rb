@@ -27,14 +27,6 @@ module Celluloid
       Actor.call @mailbox, :__send__, meth, *args, &block
     end
 
-    def after(interval, &block)
-        Actor._call @mailbox, :after, [interval], block, :block_execution => :receiver
-    end
-
-    def every(interval, &block)
-        Actor._call @mailbox, :every, [interval], block, :block_execution => :receiver
-    end
-
     def inspect
       Actor.call(@mailbox, :inspect)
     rescue DeadActorError
