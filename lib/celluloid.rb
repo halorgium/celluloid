@@ -106,9 +106,8 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      actor = Actor.new(allocate, actor_options)
-      proxy = actor.proxy
-      Actor._call(actor.mailbox, :__send__, [:initialize, *args], block, :block_execution => :receiver)
+      proxy = Actor.new(allocate, actor_options).proxy
+      proxy._send_(:initialize, *args, &block)
       proxy
     end
     alias_method :spawn, :new
@@ -117,10 +116,9 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      actor = Actor.new(allocate, actor_options)
-      proxy = actor.proxy
+      proxy = Actor.new(allocate, actor_options).proxy
       Actor.link(proxy)
-      Actor._call(actor.mailbox, :__send__, [:initialize, *args], block, :block_execution => :receiver)
+      proxy._send_(:initialize, *args, &block)
       proxy
     end
     alias_method :spawn_link, :new_link
@@ -227,6 +225,12 @@ module Celluloid
       end
     end
 
+    # Mark methods as running blocks on the receiver
+    def execute_block_on_receiver(*methods)
+      @receiver_block_executions ||= Set.new
+      @receiver_block_executions.merge methods.map(&:to_sym)
+    end
+
     # Configuration options for Actor#new
     def actor_options
       {
@@ -234,7 +238,8 @@ module Celluloid
         :proxy_class       => proxy_class,
         :task_class        => task_class,
         :exit_handler      => exit_handler,
-        :exclusive_methods => @exclusive_methods
+        :exclusive_methods => @exclusive_methods,
+        :receiver_block_executions => @receiver_block_executions || [:initialize, :after, :every]
       }
     end
 

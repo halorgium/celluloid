@@ -1,3 +1,132 @@
+shared_context "a Celluloid Actor" do |included_module|
+  class ExampleCrash < StandardError
+    attr_accessor :foo
+  end
+
+  let(:actor_class) { ExampleActorClass.create(included_module) }
+
+  it "returns the actor's class, not the proxy's" do
+    actor = actor_class.new "Troy McClure"
+    actor.class.should == actor_class
+  end
+
+  it "compares with the actor's class in a case statement" do
+    case actor_class.new("Troy McClure")
+    when actor_class
+      true
+    else
+      false
+    end.should be_true
+  end
+
+  it "can be stored in hashes" do
+    actor = actor_class.new "Troy McClure"
+    actor.hash.should_not == Kernel.hash
+    actor.object_id.should_not == Kernel.object_id
+  end
+
+  it "supports synchronous calls" do
+    actor = actor_class.new "Troy McClure"
+    actor.greet.should == "Hi, I'm Troy McClure"
+  end
+
+  it "supports synchronous calls with blocks" do
+    actor = actor_class.new "Blocky Ralboa"
+
+    block_executed = false
+    actor.run { block_executed = true }
+    block_executed.should be_true
+  end
+
+  it "supports synchronous calls via #method" do
+    method = actor_class.new("Troy McClure").method(:greet)
+    method.call.should == "Hi, I'm Troy McClure"
+  end
+
+  it "supports #arity calls via #method" do
+    method = actor_class.new("Troy McClure").method(:greet)
+    method.arity.should == 0
+
+    method = actor_class.new("Troy McClure").method(:change_name)
+    method.arity.should == 1
+  end
+
+  it "supports future(:method) syntax for synchronous future calls" do
+    actor = actor_class.new "Troy McClure"
+    future = actor.future :greet
+    future.value.should == "Hi, I'm Troy McClure"
+  end
+
+  it "supports future.method syntax for synchronous future calls" do
+    actor = actor_class.new "Troy McClure"
+    future = actor.future.greet
+    future.value.should == "Hi, I'm Troy McClure"
+  end
+
+  it "handles circular synchronous calls" do
+    klass = Class.new do
+      include included_module
+
+      def greet_by_proxy(actor)
+        actor.greet
+      end
+
+      def to_s
+        "a ponycopter!"
+      end
+    end
+
+    ponycopter = klass.new
+    actor = actor_class.new ponycopter
+    ponycopter.greet_by_proxy(actor).should == "Hi, I'm a ponycopter!"
+  end
+
+  it "properly handles method_missing" do
+    actor = actor_class.new "Method Missing"
+    actor.should respond_to(:first)
+    actor.first.should be == :bar
+  end
+
+  it "properly handles respond_to with include_private" do
+    actor = actor_class.new "Method missing privates"
+    actor.respond_to?(:zomg_private).should be_false
+    actor.respond_to?(:zomg_private, true).should be_true
+  end
+
+  it "calls the user defined finalizer" do
+    actor = actor_class.new "Mr. Bean"
+    actor.wrapped_object.should_receive(:my_finalizer)
+    actor.terminate
+    Celluloid::Actor.join(actor)
+  end
+
+  it "supports async(:method) syntax for asynchronous calls" do
+    actor = actor_class.new "Troy McClure"
+    actor.async :change_name, "Charlie Sheen"
+    actor.greet.should == "Hi, I'm Charlie Sheen"
+  end
+
+  it "supports async.method syntax for asynchronous calls" do
+    actor = actor_class.new "Troy McClure"
+    actor.async.change_name "Charlie Sheen"
+    actor.greet.should == "Hi, I'm Charlie Sheen"
+  end
+
+  it "supports async.method syntax for asynchronous calls to itself" do
+    actor = actor_class.new "Troy McClure"
+    actor.change_name_async "Charlie Sheen"
+    actor.greet.should == "Hi, I'm Charlie Sheen"
+  end
+
+  it "allows an actor to call private methods asynchronously" do
+    actor = actor_class.new "Troy McClure"
+    actor.call_private
+    actor.private_called.should be_true
+  end
+
+  it "knows if it's inside actor scope" do
+    Celluloid.should_not be_actor
+    actor = actor_class.new "Troy McClure"
     # FIXME: need a syntax for this
     Celluloid::Actor.call_with_blocks_executed_on_receiver(actor.mailbox, :run) do
       Celluloid.actor?

@@ -9,6 +9,10 @@ module Celluloid
       Scrolls.log(fn: "#{self.class}#initialize", at: "start", method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
     end
 
+    def execute_block_on_receiver
+      @block && @block.execution = :receiver
+    end
+
     def dispatch(obj)
       Scrolls.log(fn: "#{self.class}#dispatch", at: "start", obj: obj.class, method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
       _block = @block && @block.to_proc

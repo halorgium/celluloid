@@ -60,18 +60,10 @@ module Celluloid
 
       # Invoke a method on the given actor via its mailbox
       def call(mailbox, meth, *args, &block)
-        _call(mailbox, meth, args, block, :block_execution => :sender)
-      end
-
-      def call_with_blocks_executed_on_receiver(mailbox, meth, *args, &block)
-        _call(mailbox, meth, args, block, :block_execution => :receiver)
-      end
-
-      def _call(mailbox, meth, args, block, options = {})
         current_task = Thread.current[:celluloid_task]
-        Scrolls.log(fn: "Actor._call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block, options: options.inspect)
-        if block && options.fetch(:block_execution) == :sender
-          Scrolls.log(fn: "Actor._call", at: "block-proxy")
+        Scrolls.log(fn: "Actor.call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block)
+        if block
+          Scrolls.log(fn: "Actor.call", at: "block-proxy")
           if Celluloid.exclusive?
             # FIXME: nicer exception
             raise "Cannot execute blocks on sender in exclusive mode"
@@ -185,6 +177,7 @@ module Celluloid
       @mailbox      = options[:mailbox] || Mailbox.new
       @exit_handler = options[:exit_handler]
       @exclusives   = options[:exclusive_methods]
+      @receiver_block_executions = options[:receiver_block_executions]
       @task_class   = options[:task_class] || Celluloid.task_class
 
       @tasks     = TaskSet.new
@@ -357,6 +350,9 @@ module Celluloid
       when Call
         task(:call, message.method) {
           Thread.current[:celluloid_owner] = message
+          if @receiver_block_executions && (message.method && @receiver_block_executions.include?(message.method.to_sym))
+            message.execute_block_on_receiver
+          end
           r = message.dispatch(@subject)
           Scrolls.log(fn: "Actor#handle_message", at: "call-done")
           r
