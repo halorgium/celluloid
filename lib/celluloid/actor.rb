@@ -375,9 +375,9 @@ module Celluloid
           Scrolls.log(fn: "Actor#handle_message", at: "call-done")
           r
         }
-      when InvokeBlock
+      when BlockCall
         task(:invoke_block) {
-          Scrolls.log(fn: "Actor#handle_message", message: "InvokeBlock", task: Thread.current[:celluloid_task].__id__)
+          Scrolls.log(fn: "Actor#handle_message", message: "BlockCall", task: Thread.current[:celluloid_task].__id__)
           Thread.current[:celluloid_owner] = message.task
           message.dispatch
         }

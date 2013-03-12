@@ -14,7 +14,7 @@ module Celluloid
       Scrolls.log(fn: "BlockProxy#to_proc", at: "start")
       lambda do |*values|
         if task = Thread.current[:celluloid_task]
-          @mailbox << InvokeBlock.new(@call, Actor.current.mailbox, @block, values)
+          @mailbox << BlockCall.new(@call, Actor.current.mailbox, @block, values)
           # TODO: if respond fails, the Task will never be resumed
           Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-respond", task: task.__id__)
           resp = task.suspend(:invokeblock)
