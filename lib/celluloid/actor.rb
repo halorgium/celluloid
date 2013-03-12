@@ -66,26 +66,26 @@ module Celluloid
           raise DeadActorError, "attempted to call a dead actor"
         end
 
-        loop do
-          result = if Thread.current[:celluloid_task] && !Celluloid.exclusive?
-            Task.suspend(:callwait)
-          else
-            loop do
-              message = Thread.mailbox.receive do |msg|
-                msg.respond_to?(:call) and msg.call == call
-              end
-              break message unless message.is_a?(SystemEvent)
-              Thread.current[:celluloid_actor].handle_system_event(message)
+        if Thread.current[:celluloid_task] && !Celluloid.exclusive?
+          Task.suspend(:callwait).value
+        else
+          loop do
+            message = Thread.mailbox.receive do |msg|
+              msg.respond_to?(:call) and msg.call == call
             end
-          end
 
-          # FIXME: add check for receiver block execution
-          if result.respond_to?(:value)
-            # FIXME: disable block execution if on :sender and (exclusive or outside of task)
-            # probably now in Call
-            return result.value
-          else
-            result.dispatch
+            if message.is_a?(SystemEvent)
+              Thread.current[:celluloid_actor].handle_system_event(message)
+            else
+              # FIXME: add check for receiver block execution
+              if message.respond_to?(:value)
+                # FIXME: disable block execution if on :sender and (exclusive or outside of task)
+                # probably now in Call
+                break message.value
+              else
+                message.dispatch
+              end
+            end
           end
         end
       end
