@@ -239,7 +239,7 @@ module Celluloid
         :task_class        => task_class,
         :exit_handler      => exit_handler,
         :exclusive_methods => @exclusive_methods,
-        :receiver_block_executions => @receiver_block_executions || [:initialize, :after, :every]
+        :receiver_block_executions => @receiver_block_executions || [:initialize, :after, :every, :receive]
       }
     end
 

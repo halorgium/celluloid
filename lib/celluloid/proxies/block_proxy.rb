@@ -19,10 +19,8 @@ module Celluloid
             Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-suspend", resp: resp.class)
             resp
           else
-            # TODO: this is calling the block "dangerously" in some random thread
-            # usually this is inside Actor#receive or similar
-            $stderr.puts "WARNING: block running outside of a Task"
-            @block.call(*values)
+            # FIXME: better exception
+            raise "No task to suspend"
           end
         end
       else
