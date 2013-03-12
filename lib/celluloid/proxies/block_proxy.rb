@@ -10,15 +10,11 @@ module Celluloid
 
     def to_proc
       if @execution == :sender
-        Scrolls.log(fn: "BlockProxy#to_proc", at: "start")
         lambda do |*values|
           if task = Thread.current[:celluloid_task]
             @mailbox << BlockCall.new(@call, Actor.current.mailbox, @block, values)
             # TODO: if respond fails, the Task will never be resumed
-            Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-respond", task: task.__id__)
-            resp = task.suspend(:invokeblock)
-            Scrolls.log(fn: "BlockProxy#to_proc.lambda", at: "after-suspend", resp: resp.class)
-            resp
+            task.suspend(:invokeblock)
           else
             # FIXME: better exception
             raise "No task to suspend"

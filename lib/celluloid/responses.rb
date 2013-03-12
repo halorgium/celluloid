@@ -34,11 +34,9 @@ module Celluloid
     def initialize(call, result)
       @call = call
       @result = result
-      Scrolls.log(fn: "BlockResponse#initialize", call: @call.__id__)
     end
 
     def dispatch
-      Scrolls.log(fn: "BlockResponse#dispatch", call: @call.__id__, task: @call.task.__id__)
       @call.task.resume(@result)
     end
   end

@@ -68,13 +68,10 @@ module Celluloid
 
         loop do
           result = if Thread.current[:celluloid_task] && !Celluloid.exclusive?
-            Scrolls.log(fn: "Actor.call", at: "suspend", current_task: Thread.current[:celluloid_task].__id__)
             Task.suspend(:callwait)
           else
             loop do
-              Scrolls.log(fn: "Actor.call", at: "receive", current_task: current_task && current_task.__id__)
               message = Thread.mailbox.receive do |msg|
-                Scrolls.log(fn: "Actor.call", at: "receive.block", msg: msg.class, respond_to: msg.respond_to?(:call))
                 msg.respond_to?(:call) and msg.call == call
               end
               break message unless message.is_a?(SystemEvent)
@@ -82,7 +79,6 @@ module Celluloid
             end
           end
 
-          Scrolls.log(fn: "Actor.call", at: "call-result", result: result.class)
           # FIXME: add check for receiver block execution
           if result.respond_to?(:value)
             # FIXME: disable block execution if on :sender and (exclusive or outside of task)

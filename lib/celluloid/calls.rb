@@ -6,14 +6,12 @@ module Celluloid
     def initialize(method, arguments = [], block = nil)
       @method, @arguments = method, arguments
       if block
-        Scrolls.log(fn: "#{self.class}#initialize", at: "block-proxy")
         if Celluloid.exclusive?
           # FIXME: nicer exception
           raise "Cannot execute blocks on sender in exclusive mode"
         end
         @block = BlockProxy.new(self, Thread.mailbox, block)
       end
-      Scrolls.log(fn: "#{self.class}#initialize", at: "start", method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
     end
 
     def execute_block_on_receiver
@@ -114,17 +112,12 @@ module Celluloid
       @block = block
       @arguments = arguments
       @task = task
-      Scrolls.log(fn: "BlockCall#initialize", call: @call.__id__)
     end
     attr_reader :call, :task
 
     def dispatch
-      Scrolls.log(fn: "BlockCall#dispatch", block: @block.inspect, arguments: @arguments)
-      Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "before-call")
       response = @block.call(*@arguments)
-      Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "after-call")
       @caller << BlockResponse.new(self, response)
-      Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "after-reply")
     end
   end
 
