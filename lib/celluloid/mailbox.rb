@@ -7,8 +7,6 @@ module Celluloid
   # Actors communicate with asynchronous messages. Messages are buffered in
   # Mailboxes until Actors can act upon them.
   class Mailbox
-    #include FakeLogging
-
     include Enumerable
 
     # A unique address at which this mailbox can be found
@@ -24,10 +22,8 @@ module Celluloid
 
     # Add a message to the Mailbox
     def <<(message)
-      Scrolls.log(fn: "Mailbox#<<", at: "lock-mutex", mailbox: __id__)
       @mutex.lock
       begin
-        Scrolls.log(fn: "Mailbox#<<", at: "locked", klass: message.class)
         if message.is_a?(SystemEvent)
           # Silently swallow system events sent to dead actors
           return if @dead
@@ -43,7 +39,6 @@ module Celluloid
         @condition.signal
         nil
       ensure
-        Scrolls.log(fn: "Mailbox#<<", at: "unlock-mutex", mailbox: __id__)
         @mutex.unlock rescue nil
       end
     end
@@ -52,12 +47,9 @@ module Celluloid
     def receive(timeout = nil, &block)
       message = nil
 
-      Scrolls.log(fn: "Mailbox#receive", at: "lock-mutex", mailbox: __id__)
       @mutex.lock
       begin
         raise MailboxError, "attempted to receive from a dead mailbox" if @dead
-
-        Scrolls.log(fn: "Mailbox#receive", at: "locked", block: block.inspect)
 
         begin
           message = next_message(&block)
@@ -72,22 +64,13 @@ module Celluloid
               wait_interval = nil
             end
 
-            Scrolls.log(fn: "Mailbox#receive", at: "message-loop", mailbox: __id__, threads: Thread.list.inspect)
             @condition.wait(@mutex, wait_interval)
           end
         end until message
 
-        Scrolls.log(fn: "Mailbox#receive", at: "received", klass: message.class)
-
         message
       ensure
-        Scrolls.log(fn: "Mailbox#receive", at: "unlock-mutex", mailbox: __id__)
-        #Celluloid.stack_dump
-        begin
-          @mutex.unlock
-        rescue
-          Scrolls.log(fn: "Mailbox#receive", at: "unlock-mutex-exception", mailbox: __id__, exception: $!.inspect)
-        end
+        @mutex.unlock rescue nil
       end
     end
 
@@ -112,7 +95,6 @@ module Celluloid
     def shutdown
       @mutex.lock
       begin
-        Scrolls.log(fn: "Mailbox#shutdown", at: "locked", id: __id__)
         messages = @messages
         @messages = []
         @dead = true

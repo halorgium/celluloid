@@ -3,15 +3,6 @@ require 'thread'
 require 'timeout'
 require 'set'
 
-module FakeLogging
-  module Scrolls
-    def self.log(*args)
-    end
-  end
-end
-Scrolls = FakeLogging::Scrolls
-require 'scrolls' unless defined?(Scrolls)
-
 module Celluloid
   extend self # expose all instance methods as singleton methods
 

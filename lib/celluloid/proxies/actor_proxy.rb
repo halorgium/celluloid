@@ -6,7 +6,6 @@ module Celluloid
 
     def initialize(actor)
       @mailbox, @thread, @klass = actor.mailbox, actor.thread, actor.subject.class.to_s
-      Scrolls.log(fn: "ActorProxy#initialize", at: "start", mailbox: @mailbox.__id__, klass: @klass)
 
       @async_proxy  = AsyncProxy.new(actor)
       @future_proxy = FutureProxy.new(actor)

@@ -21,7 +21,6 @@ module Celluloid
     end
 
     def dispatch(obj)
-      Scrolls.log(fn: "#{self.class}#dispatch", at: "start", obj: obj.class, method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
       _block = @block && @block.to_proc
       obj.public_send(@method, *@arguments, &_block)
     rescue NoMethodError => ex
@@ -31,7 +30,6 @@ module Celluloid
       # Otherwise something blew up. Crash this actor
       raise
     rescue ArgumentError => ex
-      Scrolls.log(fn: "#{self.class}#dispatch", at: "rescue-ArgumentError", ex: ex.inspect)
       # Abort if the caller made a mistake
       begin
         arity = obj.method(@method).arity
@@ -91,7 +89,6 @@ module Celluloid
     rescue MailboxError
       # It's possible the caller exited or crashed before we could send a
       # response to them.
-      Scrolls.log(fn: "SyncCall#respond", at: "exception", exception: $!.inspect)
     end
   end
 
