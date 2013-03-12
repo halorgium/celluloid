@@ -5,7 +5,15 @@ module Celluloid
     attr_writer :mailbox
 
     def initialize(method, arguments = [], block = nil)
-      @method, @arguments, @block = method, arguments, block
+      @method, @arguments = method, arguments
+      if block
+        Scrolls.log(fn: "#{self.class}#initialize", at: "block-proxy")
+        if Celluloid.exclusive?
+          # FIXME: nicer exception
+          raise "Cannot execute blocks on sender in exclusive mode"
+        end
+        @block = BlockProxy.new(self, Thread.mailbox, block)
+      end
       Scrolls.log(fn: "#{self.class}#initialize", at: "start", method: @method.inspect, arguments: @arguments.inspect, block: @block.inspect)
     end
 

@@ -1,11 +1,12 @@
 module Celluloid
   class BlockProxy
-    def initialize(mailbox, block)
+    def initialize(call, mailbox, block)
+      @call = call
       @mailbox = mailbox
       @block = block
       @execution = :sender
     end
-    attr_writer :call, :execution
+    attr_writer :execution
 
     def to_proc
       if @execution == :sender

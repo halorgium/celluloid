@@ -62,17 +62,7 @@ module Celluloid
       def call(mailbox, meth, *args, &block)
         current_task = Thread.current[:celluloid_task]
         Scrolls.log(fn: "Actor.call", at: "start", current_mailbox: Thread.mailbox.__id__, current_task: current_task && current_task.__id__, meth: meth.inspect, block?: !!block)
-        if block
-          Scrolls.log(fn: "Actor.call", at: "block-proxy")
-          if Celluloid.exclusive?
-            # FIXME: nicer exception
-            raise "Cannot execute blocks on sender in exclusive mode"
-          end
-          block = BlockProxy.new(Thread.mailbox, block)
-        end
         call = SyncCall.new(Thread.mailbox, meth, args, block)
-        # FIXME: circular
-        block.call = call if block.respond_to?(:call=)
 
         begin
           mailbox << call
