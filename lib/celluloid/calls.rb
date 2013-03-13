@@ -135,20 +135,23 @@ module Celluloid
   end
 
   class BlockCall
-    def initialize(call, caller, block, arguments, task = Thread.current[:celluloid_task])
-      @call = call
+    def initialize(block_proxy, caller, arguments, task = Thread.current[:celluloid_task])
+      @block_proxy = block_proxy
       @caller = caller
-      @block = block
       @arguments = arguments
       @task = task
       Scrolls.log(fn: "BlockCall#initialize", call: @call.__id__)
     end
-    attr_reader :call, :task
+    attr_reader :task
+
+    def call
+      @block_proxy.call
+    end
 
     def dispatch
       Scrolls.log(fn: "BlockCall#dispatch", block: @block.inspect, arguments: @arguments)
       Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "before-call")
-      response = @block.call(*@arguments)
+      response = @block_proxy.block.call(*@arguments)
       Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "after-call")
       @caller << BlockResponse.new(self, response)
       Scrolls.log(fn: "BlockCall#dispatch", call: @call.__id__, at: "after-reply")
