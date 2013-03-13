@@ -127,15 +127,13 @@ shared_context "a Celluloid Actor" do |included_module|
   it "knows if it's inside actor scope" do
     Celluloid.should_not be_actor
     actor = actor_class.new "Troy McClure"
-    # FIXME: need a syntax for this
-    Celluloid::Actor.call_with_blocks_executed_on_receiver(actor.mailbox, :run) do
-      Celluloid.actor?
-    end.should be_true
-    actor.should be_actor
-    # FIXME: the block is sent back to the calling mailbox, but it is associated with no Actor
     actor.run do
       Celluloid.actor?
     end.should be_false
+    actor.run_on_receiver do
+      Celluloid.actor?
+    end.should be_true
+    actor.should be_actor
   end
 
   it "inspects properly" do

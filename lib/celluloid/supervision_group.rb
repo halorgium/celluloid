@@ -57,8 +57,8 @@ module Celluloid
 
     # Start the group
     def initialize(registry = nil)
-      @registry = registry || Registry.root
       @members = []
+      @registry = registry || Registry.root
       Scrolls.log(fn: "SupervisionGroup#initialize", id: __id__, members: @members.inspect)
 
       yield current_actor if block_given?
