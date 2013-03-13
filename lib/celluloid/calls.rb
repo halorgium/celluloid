@@ -2,7 +2,6 @@ module Celluloid
   # Calls represent requests to an actor
   class Call
     attr_reader :method, :arguments, :block
-    attr_writer :mailbox
 
     def initialize(method, arguments = [], block = nil)
       @method, @arguments = method, arguments
@@ -67,7 +66,8 @@ module Celluloid
           # FIXME: add check for receiver block execution
           if message.respond_to?(:value)
             # FIXME: disable block execution if on :sender and (exclusive or outside of task)
-            return message
+            # probably now in Call
+            break message
           else
             message.dispatch
           end
