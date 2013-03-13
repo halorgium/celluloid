@@ -7,8 +7,6 @@ module Celluloid
   # Actors communicate with asynchronous messages. Messages are buffered in
   # Mailboxes until Actors can act upon them.
   class Mailbox
-    #include FakeLogging
-
     include Enumerable
 
     # A unique address at which this mailbox can be found
@@ -82,7 +80,6 @@ module Celluloid
         message
       ensure
         Scrolls.log(fn: "Mailbox#receive", at: "unlock-mutex", mailbox: __id__)
-        #Celluloid.stack_dump
         begin
           @mutex.unlock
         rescue
