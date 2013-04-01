@@ -21,13 +21,13 @@ module Celluloid
   end
 
   LINKING_TIMEOUT = 5 # linking times out after 5 seconds
-  OWNER_IVAR = :@celluloid_owner # reference to owning actor
 
   # Actors are Celluloid's concurrency primitive. They're implemented as
   # normal Ruby objects wrapped in threads which communicate with asynchronous
   # messages.
+
   class Actor
-    attr_reader :subject, :proxy, :tasks, :links, :mailbox, :thread, :name, :locals
+    attr_reader :tasks, :links, :mailbox, :thread, :name, :locals
 
     class << self
       extend Forwardable
@@ -131,13 +131,10 @@ module Celluloid
       end
     end
 
-    # Wrap the given subject with an Actor
-    def initialize(subject, options = {})
-      @subject      = subject
+    def initialize(options = {})
       @mailbox      = options[:mailbox] || Mailbox.new
       @exit_handler = options[:exit_handler]
       @exclusives   = options[:exclusive_methods]
-      @receiver_block_executions = options[:receiver_block_executions]
       @task_class   = options[:task_class] || Celluloid.task_class
 
       @tasks     = TaskSet.new
@@ -145,18 +142,23 @@ module Celluloid
       @signals   = Signals.new
       @receivers = Receivers.new
       @timers    = Timers.new
-      @running   = true
+      @handlers  = Handlers.new
+      @running   = false
       @exclusive = false
       @name      = nil
       @locals    = {}
 
+      handle(SystemEvent) do |message|
+        handle_system_event message
+      end
+    end
+
+    def start
+      @running = true
       @thread = ThreadHandle.new(:actor) do
         setup_thread
         run
       end
-
-      @proxy = (options[:proxy_class] || ActorProxy).new(self)
-      @subject.instance_variable_set(OWNER_IVAR, self)
     end
 
     def setup_thread
@@ -251,6 +253,10 @@ module Celluloid
       @signals.wait name
     end
 
+    def handle(*patterns, &block)
+      @handlers.handle(*patterns, &block)
+    end
+
     # Receive an asynchronous message
     def receive(timeout = nil, &block)
       loop do
@@ -308,26 +314,7 @@ module Celluloid
 
     # Handle standard low-priority messages
     def handle_message(message)
-      case message
-      when SystemEvent
-        handle_system_event message
-      when Call
-        task(:call, message.method) {
-          if @receiver_block_executions && meth = message.method
-            if meth == :__send__
-              meth = message.arguments.first
-            end
-            if @receiver_block_executions.include?(meth.to_sym)
-              message.execute_block_on_receiver
-            end
-          end
-          message.dispatch(@subject)
-        }
-      when BlockCall
-        task(:invoke_block) { message.dispatch }
-      when BlockResponse, Response
-        message.dispatch
-      else
+      unless @handlers.handle_message(message)
         @receivers.handle_message(message)
       end
       message
