@@ -1,3 +1,4 @@
+require 'pry'
 require 'logger'
 require 'thread'
 require 'timeout'
@@ -80,6 +81,13 @@ module Celluloid
     # Launch default services
     # FIXME: We should set up the supervision hierarchy here
     def boot
+      sleep 0.1
+      threads = Thread.list.select(&:celluloid?)
+      if threads.any?
+        Celluloid.logger.error "extra threads before boot: #{threads.map(&:inspect)}"
+        threads.each(&:kill)
+      end
+      Logger.info "booting Celluloid"
       internal_pool.reset
       Celluloid::Notifications::Fanout.supervise_as :notifications_fanout
       Celluloid::IncidentReporter.supervise_as :default_incident_reporter, STDERR
@@ -93,19 +101,22 @@ module Celluloid
           # workaround for MRI bug losing exit status in at_exit block
           # http://bugs.ruby-lang.org/issues/5218
           exit_status = $!.status if $!.is_a?(SystemExit)
-          Celluloid.shutdown
+          Celluloid.shutdown(true)
           exit exit_status if exit_status
         else
-          Celluloid.shutdown
+          Celluloid.shutdown(true)
         end
       end
       @shutdown_registered = true
     end
 
     # Shut down all running actors
-    def shutdown
+    def shutdown(ignore_thread_check = false)
+      raise "not in main thread: #{Thread.current.inspect}" unless Thread.current == Thread.main
+
       actors = Actor.all
 
+      begin
       Timeout.timeout(shutdown_timeout) do
         internal_pool.shutdown
 
@@ -131,8 +142,19 @@ module Celluloid
 
         Logger.debug "Shutdown completed cleanly"
       end
+      #raise "extra threads" if Thread.list.size > 1
+      ensure
+        Logger.debug "Total threads: #{Thread.list.size}: #{Thread.list.inspect}"
+        Thread.list.each do |t|
+          next if t == Thread.main
+          pretty_backtrace = t.backtrace.join("\n\t") rescue nil
+          Logger.debug pretty_backtrace || "no backtrace"
+        end
+      end
     rescue Timeout::Error
       Logger.error("Couldn't cleanly terminate all actors in #{shutdown_timeout} seconds!")
+    rescue
+      binding.pry
       # TODO: cleanup all threads
       actors.each do |actor|
         begin
@@ -568,9 +590,55 @@ require 'celluloid/notifications'
 require 'celluloid/logging'
 
 require 'celluloid/legacy' unless defined?(CELLULOID_FUTURE)
+require 'time'
 
 # Configure default systemwide settings
 Celluloid.task_class = Celluloid::TaskFiber
 Celluloid.logger     = Logger.new(STDERR)
+Celluloid.logger.formatter = Celluloid::Logger::FORMATTER = proc do |severity, datetime, progname, msg|
+  thread = Thread.current
+  id = " " * 36
+  thread_type = "thread"
+  if thread.celluloid?
+    id = thread.call_chain_id if thread.call_chain_id
+    thread_type = "celluloid-thread"
+    if actor = thread.actor
+      if task = thread.task
+        task_info = "%s[%s](%s)" % [task.class, task.object_id.to_s(16), task.type]
+        msg = "%s %s" % [task_info, msg]
+      end
+      actor_info = "%s[%s]" % [actor.subject.class, actor.object_id.to_s(16)]
+      msg = "%s %s" % [actor_info, msg]
+    end
+  end
+  thread_id = if thread == Thread.main
+                "main"
+              else
+                thread.object_id.to_s(16)
+               end
+
+  "%7s %s %s %s[%s] %s\n" % [
+    severity,
+    $$,
+    datetime.iso8601(6),
+    thread_type,
+    thread_id,
+    msg,
+  ]
+end
 Celluloid.shutdown_timeout = 10
 Celluloid.register_shutdown
+
+r, w = IO.pipe
+
+require 'pry'
+Thread.new do
+  while r.read(1)
+    #binding.pry
+    Celluloid.stack_dump
+  end
+end
+
+trap 'INFO' do
+  w.write('x')
+end

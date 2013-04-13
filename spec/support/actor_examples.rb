@@ -430,6 +430,15 @@ shared_examples "Celluloid::Actor examples" do |included_module, task_klass|
 
   context :linking do
     before :each do
+      Celluloid.shutdown
+      sleep 0.1
+      if Thread.list.size > 1
+        binding.pry
+        raise "extra threads in spec" if Thread.list.size > 1
+      end
+      Celluloid.logger.info "shutdown celluloid"
+      Celluloid.logger.info "+" * 80
+
       @kevin   = actor_class.new "Kevin Bacon" # Some six degrees action here
       @charlie = actor_class.new "Charlie Sheen"
     end
@@ -719,11 +728,15 @@ shared_examples "Celluloid::Actor examples" do |included_module, task_klass|
     end
 
     it "times out after the given interval", :pending => ENV['CI'] do
+      #100.times do
       interval = 0.1
       started_at = Time.now
 
       receiver.receive(interval) { false }.should be_nil
-      (Time.now - started_at).should be_within(Celluloid::TIMER_QUANTUM).of interval
+      finished_at = Time.now
+      Celluloid.logger.debug "real-interval: #{finished_at - started_at}"
+      (finished_at - started_at).should be_within(Celluloid::TIMER_QUANTUM + 0.01).of interval
+      #end
     end
   end
 
@@ -747,7 +760,12 @@ shared_examples "Celluloid::Actor examples" do |included_module, task_klass|
         def sleeping?; @sleeping end
 
         def fire_after(n)
-          after(n) { @fired = true }
+          @fire_setup_at = Time.now
+          after(n) {
+            @fired = true
+            @fired_at = Time.now
+            Celluloid.logger.debug "fire-interval: #{@fired_at - @fire_setup_at}"
+          }
         end
 
         def fire_every(n)
@@ -757,6 +775,7 @@ shared_examples "Celluloid::Actor examples" do |included_module, task_klass|
 
         def fired?; !!@fired end
         def fired; @fired end
+        attr_reader :fire_setup_at, :fired_at
       end
     end
 
@@ -806,14 +825,20 @@ shared_examples "Celluloid::Actor examples" do |included_module, task_klass|
     it "cancels timers before they fire" do
       actor = @klass.new
 
+      #100.times do
       interval = Celluloid::TIMER_QUANTUM * 10
 
       timer = actor.fire_after(interval)
       actor.should_not be_fired
+      fire_setup_at = actor.fire_setup_at
+      Celluloid.logger.debug "cancelling timer"
+      cancel_at = Time.now
       timer.cancel
 
       sleep(interval + Celluloid::TIMER_QUANTUM) # wonky! #/
+      Celluloid.logger.debug "cancel-interval: #{cancel_at - fire_setup_at}"
       actor.should_not be_fired
+      #end
     end
 
     it "allows delays from outside the actor" do

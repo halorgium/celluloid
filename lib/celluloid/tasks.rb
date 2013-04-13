@@ -38,15 +38,17 @@ module Celluloid
 
       raise NotActorError, "can't create tasks outside of actors" unless actor
 
+      Logger.info "making task backend #{inspect}: #{caller(3).first}"
       create do
         begin
           @status = :running
+          Thread.current[:celluloid_task]     = self
+          CallChain.current_id = @chain_id
           actor.setup_thread
 
-          Thread.current[:celluloid_task] = self
-          CallChain.current_id = @chain_id
-
           actor.tasks << self
+
+          Celluloid::Logger.warn "created task: #{inspect}"
           yield
         rescue Task::TerminatedError
           # Task was explicitly terminated
@@ -64,8 +66,10 @@ module Celluloid
     # Suspend the current task, changing the status to the given argument
     def suspend(status)
       @status = status
+      Celluloid::Logger.warn "suspend #{inspect}"
       value = signal
 
+      Celluloid::Logger.info "unsuspended #{inspect} with #{value.class.inspect}"
       raise value if value.is_a?(Celluloid::ResumableError)
       @status = :running
 
@@ -74,6 +78,7 @@ module Celluloid
 
     # Resume a suspended task, giving it a value to return if needed
     def resume(value = nil)
+      Celluloid::Logger.warn "resume with a #{value.class} #{inspect}"
       deliver(value)
       nil
     end

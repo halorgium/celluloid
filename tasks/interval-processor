@@ -1,0 +1,1 @@
+grep $1 log/test.log |sed -e 's@^.*: @@g' |sort -n |ruby -r aggregate -e 'stats = Aggregate.new(0, 2000, 5); $stdin.read.lines.each {|l| point = Float(l.chomp); stats << point * 1000}; puts stats.to_s'

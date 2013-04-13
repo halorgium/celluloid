@@ -161,6 +161,7 @@ module Celluloid
 
     def setup_thread
       Thread.current[:celluloid_actor]   = self
+      InternalPool.state Thread.current, "setup thread-locals"
       Thread.current[:celluloid_mailbox] = @mailbox
     end
 
@@ -168,6 +169,7 @@ module Celluloid
     def run
       begin
         while @running
+          Logger.info "receiving a message: timeout_interval: #{timeout_interval.inspect}"
           if message = @mailbox.receive(timeout_interval)
             handle_message message
           else
@@ -212,6 +214,7 @@ module Celluloid
 
     # Perform a linking request with another actor
     def linking_request(receiver, type)
+      Logger.debug "linking to #{receiver.class}. type: #{type.inspect}"
       exclusive do
         start_time = Time.now
         receiver.mailbox << LinkingRequest.new(Actor.current, type)
@@ -231,6 +234,7 @@ module Celluloid
             system_events.each { |ev| handle_system_event(ev) }
             return
           when NilClass
+            Logger.debug "linking to #{receiver.class} failed"
             raise TimeoutError, "linking timeout of #{LINKING_TIMEOUT} seconds exceeded"
           when SystemEvent
             # Queue up pending system events to be processed after we've successfully linked
@@ -263,7 +267,9 @@ module Celluloid
 
     # How long to wait until the next timer fires
     def timeout_interval
+      #Logger.info "timers wait: #{@timers.wait_interval.inspect}"
       i1 = @timers.wait_interval
+      #Logger.info "receivers wait: #{@receivers.wait_interval.inspect}"
       i2 = @receivers.wait_interval
 
       if i1 and i2
@@ -339,6 +345,7 @@ module Celluloid
       when ExitEvent
         task(:exit_handler, @exit_handler) { handle_exit_event event }
       when LinkingRequest
+        Logger.debug "received LinkingRequest"
         event.process(links)
       when NamingRequest
         @name = event.name
@@ -371,8 +378,10 @@ module Celluloid
 
     # Handle cleaning up this actor after it exits
     def shutdown(exit_event = ExitEvent.new(@proxy))
+      InternalPool.state Thread.current, "start shutdown"
       run_finalizer
       cleanup exit_event
+      InternalPool.state Thread.current, "done shutdown"
     ensure
       Thread.current[:celluloid_actor]   = nil
       Thread.current[:celluloid_mailbox] = nil
@@ -390,7 +399,13 @@ module Celluloid
 
       finalizer = @subject.class.finalizer
       if finalizer && @subject.respond_to?(finalizer, true)
-        task(:finalizer, :finalize) { @subject.__send__(finalizer) }
+        InternalPool.state Thread.current, "running finalizer"
+        Logger.debug(Thread.list.map {|x| [x, x.key?(:celluloid_actor) ? x[:celluloid_actor].object_id : nil]})
+        task(:finalizer, :finalize) {
+          InternalPool.state Thread.current, "start finalizer"
+          @subject.__send__(finalizer)
+          InternalPool.state Thread.current, "done finalizer"
+        }
       end
     rescue => ex
       Logger.crash("#{@subject.class}#finalize crashed!", ex)
@@ -405,13 +420,20 @@ module Celluloid
         end
       end
 
-      tasks.each { |task| task.terminate }
+      tasks.each { |task|
+        InternalPool.state Thread.current, "terminate #{task.inspect}"
+        task.terminate
+      }
     rescue => ex
       Logger.crash("#{@subject.class}: CLEANUP CRASHED!", ex)
     end
 
     # Run a method inside a task unless it's exclusive
     def task(task_type, method_name = nil, &block)
+      if task_type == :finalizer
+        Celluloid::Logger.debug "Thread.current: #{Thread.current.inspect}"
+        Celluloid::Logger.debug "Threads: #{Thread.list.inspect}"
+      end
       if @exclusives && (@exclusives == :all || (method_name && @exclusives.include?(method_name.to_sym)))
         exclusive { block.call }
       else

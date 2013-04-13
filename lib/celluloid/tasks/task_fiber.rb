@@ -5,9 +5,11 @@ module Celluloid
   class TaskFiber < Task
 
     def create
+      uuid = Celluloid.uuid
       @fiber = Fiber.new do
         # FIXME: cannot use the writer as specs run inside normal Threads
         Thread.current[:celluloid_role] = :actor
+        InternalPool.state Thread.current, "fiber: #{Fiber.current}: #{uuid}"
         yield
       end
     end
@@ -29,6 +31,7 @@ module Celluloid
     def terminate
       super
     rescue FiberError
+      Logger.info "Got an error while terminating task: #{inspect} #{$!.inspect}"
       # If we're getting this the task should already be dead
     end
   end
