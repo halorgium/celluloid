@@ -144,9 +144,8 @@ module Celluloid
       @exclusives   = options[:exclusive_methods]
       @receiver_block_executions = options[:receiver_block_executions]
       @task_class   = options[:task_class] || Celluloid.task_class
-      @reactors     = options[:reactor_classes].map do |reactor_class|
-        reactor_class.new
-      end
+      @reactor      = (options[:reactor_class] || Reactor).new(@mailbox)
+      @mailbox.reactor = @reactor
 
       @tasks     = TaskSet.new
       @links     = Links.new
@@ -169,9 +168,7 @@ module Celluloid
     def setup_thread(thread)
       thread[:celluloid_actor]   = self
       thread[:celluloid_mailbox] = @mailbox
-      @reactors.each do |reactor|
-        reactor.register(thread)
-      end
+      @reactor.register(thread)
       #binding.pry
     end
 
@@ -179,16 +176,12 @@ module Celluloid
     def run
       begin
         while @running
-          if message = @mailbox.receive(timeout_interval)
+          @reactor.run_once(timeout_interval) do |message|
             handle_message message
-          else
-            @reactor.each do |reactor|
-              next if reactor.run_once(timeout_interval)
-            end
-            # No message indicates a timeout
-            @timers.fire
-            @receivers.fire_timers
           end
+          # No message indicates a timeout
+          @timers.fire
+          @receivers.fire_timers
         end
       rescue MailboxShutdown
         # If the mailbox detects shutdown, exit the actor

@@ -95,6 +95,8 @@ module Celluloid
           end
         end
 
+        internal_pool.shutdown
+
         Logger.debug "Shutdown completed cleanly"
       end
     rescue Timeout::Error
@@ -215,8 +217,15 @@ module Celluloid
       end
     end
 
-    def reactor_classes
-      @reactor_classes ||= []
+    # Define the default reactor type for this class
+    def reactor_class(klass = nil)
+      if klass
+        @reactor_class = klass
+      elsif defined?(@reactor_class)
+        @reactor_class
+      elsif superclass.respond_to? :reactor_class
+        superclass.reactor_class
+      end
     end
 
     # Mark methods as running exclusively
@@ -244,7 +253,7 @@ module Celluloid
         :mailbox           => mailbox_class.new,
         :proxy_class       => proxy_class,
         :task_class        => task_class,
-        :reactor_classes   => reactor_classes,
+        :reactor_class     => reactor_class,
         :exit_handler      => exit_handler,
         :exclusive_methods => defined?(@exclusive_methods) ? @exclusive_methods : nil,
         :receiver_block_executions => receiver_block_executions
@@ -296,7 +305,7 @@ module Celluloid
       if leaked?
         str << Celluloid::BARE_OBJECT_WARNING_MESSAGE
       else
-        str << "Celluloid::ActorProxy"
+        str << "Celluloid::Actor"
       end
 
       str << "(#{self.class}:0x#{object_id.to_s(16)})"
@@ -465,6 +474,7 @@ require 'celluloid/fsm'
 require 'celluloid/internal_pool'
 require 'celluloid/links'
 require 'celluloid/logger'
+require 'celluloid/reactor'
 require 'celluloid/mailbox'
 require 'celluloid/method'
 require 'celluloid/receivers'
@@ -495,6 +505,6 @@ require 'celluloid/logging'
 require 'celluloid/legacy' unless defined?(CELLULOID_FUTURE)
 
 # Configure default systemwide settings
-Celluloid.task_class = Celluloid::TaskFiber
+Celluloid.task_class = Celluloid::TaskThread
 Celluloid.logger     = Logger.new(STDERR)
 Celluloid.shutdown_timeout = 10

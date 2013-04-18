@@ -74,6 +74,14 @@ module Celluloid
         thread[key] = nil
       end
     end
+
+    def shutdown
+      @mutex.synchronize do
+        @pool.each do |thread|
+          thread[:celluloid_queue] << nil
+        end
+      end
+    end
   end
 
   self.internal_pool = InternalPool.new

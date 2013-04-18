@@ -19,6 +19,7 @@ module Celluloid
       @dead      = false
       @condition = ConditionVariable.new
     end
+    attr_writer :reactor
 
     # Add a message to the Mailbox
     def <<(message)
@@ -37,6 +38,8 @@ module Celluloid
         end
 
         @condition.signal
+        Celluloid.logger.info "signalling reactor: #{@reactor.class}" if @reactor
+        @reactor.wakeup if @reactor
         nil
       ensure
         @mutex.unlock rescue nil
