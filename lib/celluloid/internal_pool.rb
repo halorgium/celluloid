@@ -57,6 +57,15 @@ module Celluloid
         thread[:queue] = queue
         thread
       end
+
+      def shutdown
+        @mutex.synchronize do
+          @max_idle = 0
+          @pool.each do |thread|
+            thread[:queue] << nil
+          end
+        end
+      end
     end
   end
 end

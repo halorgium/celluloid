@@ -54,6 +54,8 @@ module Celluloid
     # Shut down all running actors
     def shutdown
       Timeout.timeout(SHUTDOWN_TIMEOUT) do
+        InternalPool.shutdown
+
         actors = Actor.all
         Logger.debug "Terminating #{actors.size} actors..." if actors.size > 0
 
