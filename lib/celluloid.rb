@@ -66,6 +66,7 @@ module Celluloid
     # Launch default services
     # FIXME: We should set up the supervision hierarchy here
     def boot
+      return
       Celluloid::Notifications::Fanout.supervise_as :notifications_fanout
       Celluloid::IncidentReporter.supervise_as :default_incident_reporter, STDERR
     end
@@ -214,6 +215,10 @@ module Celluloid
       end
     end
 
+    def reactor_classes
+      @reactor_classes ||= []
+    end
+
     # Mark methods as running exclusively
     def exclusive(*methods)
       if methods.empty?
@@ -239,6 +244,7 @@ module Celluloid
         :mailbox           => mailbox_class.new,
         :proxy_class       => proxy_class,
         :task_class        => task_class,
+        :reactor_classes   => reactor_classes,
         :exit_handler      => exit_handler,
         :exclusive_methods => defined?(@exclusive_methods) ? @exclusive_methods : nil,
         :receiver_block_executions => receiver_block_executions

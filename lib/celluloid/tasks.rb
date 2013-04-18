@@ -35,10 +35,8 @@ module Celluloid
       create do
         begin
           @status = :running
-          Thread.current[:celluloid_actor]    = actor
-          Thread.current[:celluloid_mailbox]  = mailbox
+          actor.setup_thread(Thread.current)
           Thread.current[:celluloid_task]     = self
-          Thread.current[:celluloid_chain_id] = chain_id
 
           actor.tasks << self
           yield

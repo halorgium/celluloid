@@ -1,3 +1,4 @@
+require 'pry'
 require 'timers'
 
 module Celluloid
@@ -136,12 +137,16 @@ module Celluloid
 
     # Wrap the given subject with an Actor
     def initialize(subject, options = {})
+      #binding.pry
       @subject      = subject
       @mailbox      = options[:mailbox] || Mailbox.new
       @exit_handler = options[:exit_handler]
       @exclusives   = options[:exclusive_methods]
       @receiver_block_executions = options[:receiver_block_executions]
       @task_class   = options[:task_class] || Celluloid.task_class
+      @reactors     = options[:reactor_classes].map do |reactor_class|
+        reactor_class.new
+      end
 
       @tasks     = TaskSet.new
       @links     = Links.new
@@ -152,14 +157,22 @@ module Celluloid
       @exclusive = false
       @name      = nil
 
-      @thread = ThreadHandle.new do
-        Thread.current[:celluloid_actor]   = self
-        Thread.current[:celluloid_mailbox] = @mailbox
+      @thread = ThreadHandle.new do |thread|
+        setup_thread(thread)
         run
       end
 
       @proxy = (options[:proxy_class] || ActorProxy).new(self)
       @subject.instance_variable_set(OWNER_IVAR, self)
+    end
+
+    def setup_thread(thread)
+      thread[:celluloid_actor]   = self
+      thread[:celluloid_mailbox] = @mailbox
+      @reactors.each do |reactor|
+        reactor.register(thread)
+      end
+      #binding.pry
     end
 
     # Run the actor loop
@@ -169,6 +182,9 @@ module Celluloid
           if message = @mailbox.receive(timeout_interval)
             handle_message message
           else
+            @reactor.each do |reactor|
+              next if reactor.run_once(timeout_interval)
+            end
             # No message indicates a timeout
             @timers.fire
             @receivers.fire_timers

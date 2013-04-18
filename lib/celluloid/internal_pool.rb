@@ -52,7 +52,7 @@ module Celluloid
       thread = Thread.new do
         while proc = queue.pop
           begin
-            proc.call
+            proc.call(thread)
           rescue => ex
             Logger.crash("thread crashed", ex)
           end

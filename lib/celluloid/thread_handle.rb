@@ -7,9 +7,9 @@ module Celluloid
       @mutex = Mutex.new
       @join  = ConditionVariable.new
 
-      @thread = Celluloid.internal_pool.get do
+      @thread = Celluloid.internal_pool.get do |thread|
         begin
-          yield
+          yield self
         ensure
           @mutex.synchronize do
             @thread = nil
@@ -17,6 +17,18 @@ module Celluloid
           end
         end
       end
+    end
+
+    def keys
+      @mutex.synchronize { @thread.keys if @thread }
+    end
+
+    def [](key)
+      @mutex.synchronize { @thread[key] if @thread }
+    end
+
+    def []=(key, value)
+      @mutex.synchronize { @thread[key] = value if @thread }
     end
 
     # Is the thread running?
