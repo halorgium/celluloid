@@ -23,6 +23,10 @@ module Celluloid
       raise DeadTaskError, "cannot resume a dead task (#{ex})"
     end
 
+    def backtrace
+      @fiber.backtrace
+    end
+
     # Terminate this task
     def terminate
       super

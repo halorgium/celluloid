@@ -39,7 +39,7 @@ module Celluloid
 
     # Obtain the backtrace for this thread
     def backtrace
-      @thread.backtrace
+      @thread.root_fiber.backtrace
     rescue NoMethodError
       # undefined method `backtrace' for nil:NilClass
       # Swallow this in case this ThreadHandle was terminated and @thread was
