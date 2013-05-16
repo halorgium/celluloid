@@ -169,6 +169,7 @@ module Celluloid
     def run
       begin
         while @running
+          Logger.info "looping"
           Logger.info "receiving a message: timeout_interval: #{timeout_interval.inspect}"
           if message = @mailbox.receive(timeout_interval)
             handle_message message
@@ -178,6 +179,7 @@ module Celluloid
             @receivers.fire_timers
           end
         end
+        Logger.info "main loop finished"
       rescue MailboxShutdown
         # If the mailbox detects shutdown, exit the actor
       end
@@ -190,6 +192,7 @@ module Celluloid
 
     # Terminate this actor
     def terminate
+      Logger.info "terminating: @running=#{@running.inspect}"
       @running = false
     end
 
