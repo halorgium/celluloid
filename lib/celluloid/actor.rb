@@ -21,7 +21,7 @@ module Celluloid
   # normal Ruby objects wrapped in threads which communicate with asynchronous
   # messages.
   class Actor < BasicActor
-    attr_reader :subject, :proxy, :links, :name, :locals
+    attr_reader :subject, :proxy, :links, :name
 
     class << self
       extend Forwardable
@@ -136,7 +136,6 @@ module Celluloid
       @links     = Links.new
       @exclusive = false
       @name      = nil
-      @locals    = {}
 
       setup
 

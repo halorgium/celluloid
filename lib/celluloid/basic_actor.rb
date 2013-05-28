@@ -1,17 +1,18 @@
 module Celluloid
   # Don't do Actor-like things outside Actor scope
-  class NotActorError < StandardError; end
+  class NotActorError < Celluloid::Error; end
 
   # Trying to do something to a dead actor
-  class DeadActorError < StandardError; end
+  class DeadActorError < Celluloid::Error; end
 
   class BasicActor
-    attr_reader :tasks, :thread, :mailbox, :proxy
+    attr_reader :tasks, :thread, :mailbox, :proxy, :locals
 
     def initialize(options = {})
       @mailbox    = options[:mailbox] || Mailbox.new
       @task_class = options[:task_class] || Celluloid.task_class
 
+      @locals    = {}
       @tasks     = TaskSet.new
       @signals   = Signals.new
       @timers    = Timers.new
@@ -23,12 +24,16 @@ module Celluloid
     def start(proxy_class)
       @running = true
       @thread = ThreadHandle.new do
-        Thread.current[:celluloid_actor]   = self
-        Thread.current[:celluloid_mailbox] = @mailbox
+        setup_thread
         run
       end
 
       @proxy = proxy_class.new(self)
+    end
+
+    def setup_thread
+      Thread.current[:celluloid_actor]   = self
+      Thread.current[:celluloid_mailbox] = @mailbox
     end
 
     # Run the actor loop
@@ -62,7 +67,7 @@ module Celluloid
 
     # Send a signal with the given name to all waiting methods
     def signal(name, value = nil)
-      @signals.send name, value
+      @signals.broadcast name, value
     end
 
     # Wait for the given signal
