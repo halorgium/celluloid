@@ -2,8 +2,9 @@ require 'set'
 
 module Celluloid
   class Handlers
-    def initialize
+    def initialize(receivers)
       @handlers = Set.new
+      @receivers = receivers
     end
 
     def handle(*patterns, &block)
@@ -15,11 +16,12 @@ module Celluloid
 
     # Handle incoming messages
     def handle_message(message)
-      handler = @handlers.find { |h| h.match(message) }
-      return unless handler
-
-      handler.call message
-      true
+      if handler = @handlers.find { |h| h.match(message) }
+        handler.call message
+      else
+        @receivers.handle_message(message)
+      end
+      message
     end
   end
 
