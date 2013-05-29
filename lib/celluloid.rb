@@ -166,7 +166,7 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      proxy = Actor.new(allocate, actor_options).proxy
+      proxy = ObjectActor.new(allocate, actor_options).proxy
       proxy._send_(:initialize, *args, &block)
       proxy
     end
@@ -176,7 +176,7 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      proxy = Actor.new(allocate, actor_options).proxy
+      proxy = ObjectActor.new(allocate, actor_options).proxy
       Actor.link(proxy)
       proxy._send_(:initialize, *args, &block)
       proxy
@@ -579,8 +579,8 @@ require 'celluloid/proxies/async_proxy'
 require 'celluloid/proxies/future_proxy'
 require 'celluloid/proxies/block_proxy'
 
-require 'celluloid/basic_actor'
 require 'celluloid/actor'
+require 'celluloid/object_actor'
 require 'celluloid/future'
 require 'celluloid/pool_manager'
 require 'celluloid/supervision_group'
