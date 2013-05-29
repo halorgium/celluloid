@@ -93,12 +93,15 @@ module Celluloid
 
     def suspend(status, waiter)
       task = Thread.current[:celluloid_task]
+      Thread.current[:celluloid_waiter] = waiter
       if task && !Celluloid.exclusive?
         waiter.before_suspend(task) if waiter.respond_to?(:before_suspend)
         Task.suspend(status)
       else
         waiter.wait
       end
+    ensure
+      Thread.current[:celluloid_waiter] = nil
     end
 
     def boot
@@ -113,6 +116,7 @@ module Celluloid
     # Launch default services
     # FIXME: We should set up the supervision hierarchy here
     def start
+      Logger.info "booting"
       Celluloid::Notifications::Fanout.supervise_as :notifications_fanout
       Celluloid::IncidentReporter.supervise_as :default_incident_reporter, STDERR
     end
@@ -136,6 +140,7 @@ module Celluloid
 
     # Shut down all running actors
     def shutdown
+      Logger.info "shutting down"
       actors = Actor.all
 
       Timeout.timeout(shutdown_timeout) do
