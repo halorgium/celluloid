@@ -8,9 +8,11 @@ module Celluloid
       @join  = ConditionVariable.new
 
       @thread = Celluloid.internal_pool.get do
-        Thread.current.role = role
         begin
+          Thread.current.role = role
           yield
+        rescue Exception => ex
+          $stderr.print "Got an exception with Thread: #{ex.inspect}\n#{ex.backtrace.join("\n")}"
         ensure
           @mutex.synchronize do
             @thread = nil

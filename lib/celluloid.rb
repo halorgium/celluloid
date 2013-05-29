@@ -69,21 +69,26 @@ module Celluloid
 
     def suspend(status, waiter)
       task = Thread.current[:celluloid_task]
+      Thread.current[:celluloid_waiter] = waiter
       if task && !Celluloid.exclusive?
         waiter.before_suspend(task) if waiter.respond_to?(:before_suspend)
         Task.suspend(status)
       else
         waiter.wait
       end
+    ensure
+      Thread.current[:celluloid_waiter] = nil
     end
 
     # Launch default services
     # FIXME: We should set up the supervision hierarchy here
     def boot
+      Logger.info "booting"
       internal_pool.reset
-      sleep 0.5
-      Celluloid::Notifications::Fanout.supervise_as :notifications_fanout
-      Celluloid::IncidentReporter.supervise_as :default_incident_reporter, STDERR
+      fanout = Celluloid::Notifications::Fanout.new
+      Registry.root[:notifications_fanout] = fanout
+      reporter = Celluloid::IncidentReporter.new STDERR
+      Registry.root[:default_incident_reporter] = reporter
     end
 
     def register_shutdown
@@ -105,6 +110,7 @@ module Celluloid
 
     # Shut down all running actors
     def shutdown
+      Logger.info "shutting down"
       actors = Actor.all
 
       Timeout.timeout(shutdown_timeout) do
@@ -142,11 +148,14 @@ module Celluloid
         rescue DeadActorError, MailboxError
         end
       end
+
       orphans = Thread.list.select(&:celluloid?)
+
       if orphans.any?
         Logger.debug "Killing #{orphans.size} orphaned Threads"
         orphans.map(&:kill)
       end
+
       Thread.list.map do |thread|
         thread[:celluloid_mailbox] = nil
       end

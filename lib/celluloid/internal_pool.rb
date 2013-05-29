@@ -6,15 +6,19 @@ module Celluloid
     attr_accessor :busy_size, :idle_size, :max_idle
 
     def initialize
-      @pool = []
       @mutex = Mutex.new
-      @busy_size = @idle_size = 0
 
       reset
     end
 
     def reset
       # TODO: should really adjust this based on usage
+      if @pool && @pool.any?
+        $stderr.print "whoops, cleanup failed: #{@pool.size}: #{@pool.inspect}\n"
+        @pool.each(&:kill)
+      end
+      @pool = []
+      @busy_size = @idle_size = 0
       @max_idle = 16
     end
 

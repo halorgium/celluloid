@@ -5,6 +5,8 @@ require 'celluloid/rspec'
 require 'coveralls'
 Coveralls.wear!
 
+Thread.abort_on_exception = true
+
 logfile = File.open(File.expand_path("../../log/test.log", __FILE__), 'a')
 logfile.sync = true
 Celluloid.logger = Logger.new(logfile)
@@ -17,6 +19,7 @@ require 'pry'
 RSpec.configure do |config|
   config.filter_run :focus => true
   config.run_all_when_everything_filtered = true
+  config.mock_with :nothing
 
   config.around(:each) do |example|
     full_description = example.metadata[:full_description]
@@ -31,7 +34,28 @@ RSpec.configure do |config|
       Celluloid.shutdown
       Celluloid.boot
       Celluloid.logger.info "running"
-      example.run
+      mutex = Mutex.new
+      condition = ConditionVariable.new
+      $spec_thread = Thread.new {
+        mutex.synchronize {
+          begin
+            Celluloid.logger.info "before example"
+            example.run
+            Celluloid.logger.info "after example"
+          rescue Exception => ex
+            Celluloid.logger.crash ex, "Got an exception with spec thread"
+          end
+          condition.signal
+        }
+      }
+      mutex.synchronize {
+        condition.wait(mutex, 1)
+        if $spec_thread.alive?
+          $stderr.print "spec thread is still alive, killing\n"
+          $spec_thread.kill
+        end
+      }
+      Celluloid.logger.info "finished"
     end
   end
 end
