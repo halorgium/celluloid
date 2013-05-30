@@ -151,14 +151,16 @@ module Celluloid
       handle(SystemEvent) do |message|
         handle_system_event message
       end
-    end
 
-    def start
+      before_spawn(options) if respond_to?(:before_spawn)
+
       @running = true
       @thread = ThreadHandle.new(:actor) do
         setup_thread
         run
       end
+
+      after_spawn(options) if respond_to?(:after_spawn)
     end
 
     def setup_thread

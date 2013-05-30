@@ -147,7 +147,7 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      proxy = ObjectActor.new(allocate, actor_options).proxy
+      proxy = ObjectActor.new(actor_options.merge(:subject => allocate)).proxy
       proxy._send_(:initialize, *args, &block)
       proxy
     end
@@ -157,7 +157,7 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      proxy = ObjectActor.new(allocate, actor_options).proxy
+      proxy = ObjectActor.new(actor_options.merge(:subject => allocate)).proxy
       Actor.link(proxy)
       proxy._send_(:initialize, *args, &block)
       proxy
