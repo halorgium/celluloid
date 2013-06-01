@@ -6,7 +6,7 @@ module Celluloid
     attr_reader :subject, :proxy
 
     def before_spawn(options)
-      @subject      = options.fetch(:subject)
+      # TODO: per subject
       @receiver_block_executions = options[:receiver_block_executions]
 
       handle(Call) do |message|
@@ -19,7 +19,8 @@ module Celluloid
               message.execute_block_on_receiver
             end
           end
-          message.dispatch(@subject)
+          subject = @subjects.fetch(message.uuid)
+          message.dispatch(subject)
         }
       end
       handle(BlockCall) do |message|
@@ -31,8 +32,15 @@ module Celluloid
     end
 
     def after_spawn(options)
-      @proxy = (options[:proxy_class] || ActorProxy).new(self)
-      @subject.instance_variable_set(OWNER_IVAR, self)
+      @subjects = {}
+      @proxy_class = (options[:proxy_class] || CellProxy)
+    end
+
+    def create_proxy(subject)
+      uuid = Celluloid.uuid
+      @subjects[uuid] = subject
+      subject.instance_variable_set(OWNER_IVAR, self)
+      @proxy_class.new(@actor_proxy, @mailbox, subject.class.to_s, uuid)
     end
   end
 end

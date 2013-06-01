@@ -3,8 +3,8 @@ module Celluloid
   class SyncProxy < AbstractProxy
     attr_reader :mailbox
 
-    def initialize(mailbox, klass)
-      @mailbox, @klass = mailbox, klass
+    def initialize(mailbox, klass, uuid)
+      @mailbox, @klass, @uuid = mailbox, klass, uuid
     end
 
     def inspect
@@ -21,7 +21,7 @@ module Celluloid
         meth = :__send__
       end
 
-      call = SyncCall.new(::Celluloid.mailbox, meth, args, block)
+      call = SyncCall.new(::Celluloid.mailbox, uuid, meth, args, block)
       @mailbox << call
       call.value
     end

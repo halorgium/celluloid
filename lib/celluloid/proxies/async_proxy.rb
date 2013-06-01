@@ -3,8 +3,8 @@ module Celluloid
   class AsyncProxy < AbstractProxy
     attr_reader :mailbox
 
-    def initialize(mailbox, klass)
-      @mailbox, @klass = mailbox, klass
+    def initialize(mailbox, klass, uuid)
+      @mailbox, @klass, @uuid = mailbox, klass, uuid
     end
 
     def inspect
@@ -22,7 +22,7 @@ module Celluloid
         raise "Cannot use blocks with async yet"
       end
 
-      @mailbox << AsyncCall.new(meth, args, block)
+      @mailbox << AsyncCall.new(uuid, meth, args, block)
     end
   end
 end

@@ -3,8 +3,8 @@ module Celluloid
   class FutureProxy < AbstractProxy
     attr_reader :mailbox
 
-    def initialize(mailbox, klass)
-      @mailbox, @klass = mailbox, klass
+    def initialize(mailbox, klass, uuid)
+      @mailbox, @klass, @uuid = mailbox, klass, uuid
     end
 
     def inspect
@@ -22,7 +22,7 @@ module Celluloid
       end
 
       future = Future.new
-      call = SyncCall.new(future, meth, args, block)
+      call = SyncCall.new(future, uuid, meth, args, block)
 
       @mailbox << call
 

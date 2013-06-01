@@ -147,7 +147,9 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      proxy = ObjectActor.new(actor_options.merge(:subject => allocate)).proxy
+      actor = ObjectActor.new(actor_options)
+      # TODO: should this be via the Mailbox protocol
+      proxy = actor.create_proxy(allocate)
       proxy._send_(:initialize, *args, &block)
       proxy
     end
@@ -157,8 +159,9 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      proxy = ObjectActor.new(actor_options.merge(:subject => allocate)).proxy
+      actor = ObjectActor.new(actor_options)
       Actor.link(proxy)
+      proxy = actor.create_proxy(allocate)
       proxy._send_(:initialize, *args, &block)
       proxy
     end
@@ -235,7 +238,7 @@ module Celluloid
       elsif superclass.respond_to? :proxy_class
         superclass.proxy_class
       else
-        Celluloid::ActorProxy
+        Celluloid::CellProxy
       end
     end
 
@@ -555,6 +558,7 @@ require 'celluloid/uuid'
 
 require 'celluloid/proxies/abstract_proxy'
 require 'celluloid/proxies/sync_proxy'
+require 'celluloid/proxies/cell_proxy'
 require 'celluloid/proxies/actor_proxy'
 require 'celluloid/proxies/async_proxy'
 require 'celluloid/proxies/future_proxy'

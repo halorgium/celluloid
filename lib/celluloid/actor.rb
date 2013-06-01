@@ -27,7 +27,7 @@ module Celluloid
   # messages.
 
   class Actor
-    attr_reader :tasks, :links, :mailbox, :thread, :name, :locals
+    attr_reader :proxy, :tasks, :links, :mailbox, :thread, :name, :locals
 
     class << self
       extend Forwardable
@@ -160,6 +160,7 @@ module Celluloid
         run
       end
 
+      @proxy = ActorProxy.new(@thread, @mailbox)
       after_spawn(options) if respond_to?(:after_spawn)
     end
 
@@ -360,7 +361,7 @@ module Celluloid
 
     # Handle cleaning up this actor after it exits
     def shutdown(exit_event = ExitEvent.new(@proxy))
-      run_finalizer
+      run_finalizers
       cleanup exit_event
     ensure
       Thread.current[:celluloid_actor]   = nil
@@ -368,21 +369,29 @@ module Celluloid
     end
 
     # Run the user-defined finalizer, if one is set
-    def run_finalizer
-      # FIXME: remove before Celluloid 1.0
-      if @subject.respond_to?(:finalize) && @subject.class.finalizer != :finalize
-        Logger.warn("DEPRECATION WARNING: #{@subject.class}#finalize is deprecated and will be removed in Celluloid 1.0. " +
-          "Define finalizers with '#{@subject.class}.finalizer :callback.'")
+    def run_finalizers
+      if @subjects
+        @subjects.each do |uuid,subject|
+          run_finalizer(subject)
+        end
+      end
+    end
 
-        task(:finalizer, :finalize) { @subject.finalize }
+    def run_finalizer(subject)
+      # FIXME: remove before Celluloid 1.0
+      if subject.respond_to?(:finalize) && subject.class.finalizer != :finalize
+        Logger.warn("DEPRECATION WARNING: #{subject.class}#finalize is deprecated and will be removed in Celluloid 1.0. " +
+          "Define finalizers with '#{subject.class}.finalizer :callback.'")
+
+        task(:finalizer, :finalize) { subject.finalize }
       end
 
-      finalizer = @subject.class.finalizer
-      if finalizer && @subject.respond_to?(finalizer, true)
-        task(:finalizer, :finalize) { @subject.__send__(finalizer) }
+      finalizer = subject.class.finalizer
+      if finalizer && subject.respond_to?(finalizer, true)
+        task(:finalizer, :finalize) { subject.__send__(finalizer) }
       end
     rescue => ex
-      Logger.crash("#{@subject.class}#finalize crashed!", ex)
+      Logger.crash("#{subject.class}#finalize crashed!", ex)
     end
 
     # Clean up after this actor

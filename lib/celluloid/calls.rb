@@ -1,10 +1,10 @@
 module Celluloid
   # Calls represent requests to an actor
   class Call
-    attr_reader :method, :arguments, :block
+    attr_reader :uuid, :method, :arguments, :block
 
-    def initialize(method, arguments = [], block = nil)
-      @method, @arguments = method, arguments
+    def initialize(uuid, method, arguments = [], block = nil)
+      @uuid, method, @arguments = uuid, method, arguments
       if block
         if Celluloid.exclusive?
           # FIXME: nicer exception
