@@ -25,7 +25,7 @@ module Celluloid
     def inspect
       method_missing :inspect
     rescue DeadActorError
-      "#<Celluloid::ActorProxy(#{@klass}) dead>"
+      "#<Celluloid::CellProxy(#{@klass}) dead>"
     end
 
     def name
@@ -53,7 +53,7 @@ module Celluloid
     end
 
     def alive?
-      @mailbox.alive?
+      @actor_proxy.alive?
     end
 
     def to_s
@@ -82,15 +82,12 @@ module Celluloid
 
     # Terminate the associated actor
     def terminate
-      terminate!
-      Actor.join(self)
-      nil
+      @actor_proxy.terminate
     end
 
     # Terminate the associated actor asynchronously
     def terminate!
-      ::Kernel.raise DeadActorError, "actor already terminated" unless alive?
-      @mailbox << TerminationRequest.new
+      @actor_proxy.terminate!
     end
   end
 end

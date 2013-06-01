@@ -4,7 +4,7 @@ module Celluloid
     attr_reader :uuid, :method, :arguments, :block
 
     def initialize(uuid, method, arguments = [], block = nil)
-      @uuid, method, @arguments = uuid, method, arguments
+      @uuid, @method, @arguments = uuid, method, arguments
       if block
         if Celluloid.exclusive?
           # FIXME: nicer exception
