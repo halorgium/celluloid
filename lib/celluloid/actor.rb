@@ -132,9 +132,10 @@ module Celluloid
     end
 
     def initialize(options = {})
+      Logger.info "actor options: #{options.keys.inspect}"
+      @behavior     = options[:behavior]
       @mailbox      = options[:mailbox] || Mailbox.new
       @exit_handler = options[:exit_handler]
-      @exclusives   = options[:exclusive_methods]
       @task_class   = options[:task_class] || Celluloid.task_class
 
       @tasks     = TaskSet.new
@@ -152,7 +153,7 @@ module Celluloid
         handle_system_event message
       end
 
-      before_spawn(options) if respond_to?(:before_spawn)
+      @behavior.setup(options) if @behavior.respond_to?(:before_spawn)
 
       @running = true
       @thread = ThreadHandle.new(:actor) do
@@ -161,7 +162,7 @@ module Celluloid
       end
 
       @proxy = ActorProxy.new(@thread, @mailbox)
-      after_spawn(options) if respond_to?(:after_spawn)
+      @behavior.after_spawn(options) if @behavior.respond_to?(:after_spawn)
     end
 
     def setup_thread
