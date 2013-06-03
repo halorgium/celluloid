@@ -2,13 +2,8 @@ module Celluloid
   OWNER_IVAR = :@celluloid_owner # reference to owning actor
 
   # Wrap the given subject with an Actor
-  class ObjectActor < Actor
-    attr_reader :subject, :proxy
-
+  class CellActor < Actor
     def before_spawn(options)
-      # TODO: per subject
-      @receiver_block_executions = options[:receiver_block_executions]
-
       handle(Call) do |message|
         task(:call, message.method) {
           if @receiver_block_executions && meth = message.method
@@ -36,11 +31,30 @@ module Celluloid
       @proxy_class = (options[:proxy_class] || CellProxy)
     end
 
-    def create_proxy(subject)
+    def create_cell(subject, receiver_block_executions)
       uuid = Celluloid.uuid
-      @subjects[uuid] = subject
+      @cells[uuid] = Cell.new(subject)
       subject.instance_variable_set(OWNER_IVAR, self)
       @proxy_class.new(@actor_proxy, @mailbox, subject.class.to_s, uuid)
+    end
+  end
+
+  class MultiCellActor < CellActor
+    
+  end
+
+  class SingleCellActor < CellActor
+    attr_reader :cell, :cell_proxy
+
+    def after_spawn(options)
+      # TODO: per subject
+      @receiver_block_executions = options[:receiver_block_executions]
+
+      @subject = options.delete(:subject)
+      options[:subjects] = []
+      super(options)
+      @subject = options.fetch(:subject)
+      @proxy = create_proxy(@subject)
     end
   end
 end
