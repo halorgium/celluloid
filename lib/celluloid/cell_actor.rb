@@ -1,22 +1,21 @@
 module Celluloid
-  OWNER_IVAR = :@celluloid_owner # reference to owning actor
-
   # Wrap the given subject with an Actor
-  class CellActor < Actor
-    def before_spawn(options)
+  class CellActor
+    def initialize(options)
+      @cell         = Cell.new(options.merge(:behavior => self))
+      @actor        = Actor.new(options.merge(:behavior => self))
+
+      setup(options)
+
+      @actor.start
+      @cell.after_spawn(@actor.proxy, @actor.mailbox)
+    end
+
+    def setup(options)
+      @exit_handler = options[:exit_handler]
+
       handle(Call) do |message|
-        task(:call, message.method) {
-          if @receiver_block_executions && meth = message.method
-            if meth == :__send__
-              meth = message.arguments.first
-            end
-            if @receiver_block_executions.include?(meth.to_sym)
-              message.execute_block_on_receiver
-            end
-          end
-          subject = @subjects.fetch(message.uuid)
-          message.dispatch(subject)
-        }
+        @cell.invoke(message)
       end
       handle(BlockCall) do |message|
         task(:invoke_block) { message.dispatch }
@@ -26,35 +25,39 @@ module Celluloid
       end
     end
 
-    def after_spawn(options)
-      @subjects = {}
-      @proxy_class = (options[:proxy_class] || CellProxy)
+    def proxy
+      @cell.proxy
     end
 
-    def create_cell(subject, receiver_block_executions)
-      uuid = Celluloid.uuid
-      @cells[uuid] = Cell.new(subject)
-      subject.instance_variable_set(OWNER_IVAR, self)
-      @proxy_class.new(@actor_proxy, @mailbox, subject.class.to_s, uuid)
+    def handle_exit_event(event)
+      @cell.handle_exit_event(event, @exit_handler)
     end
-  end
 
-  class MultiCellActor < CellActor
-    
-  end
+    def handling_exit_events?
+      @exit_handler
+    end
 
-  class SingleCellActor < CellActor
-    attr_reader :cell, :cell_proxy
+    # Run the user-defined finalizer, if one is set
+    def shutdown
+      @cell.shutdown
+    end
 
-    def after_spawn(options)
-      # TODO: per subject
-      @receiver_block_executions = options[:receiver_block_executions]
+    # SUPER
 
-      @subject = options.delete(:subject)
-      options[:subjects] = []
-      super(options)
-      @subject = options.fetch(:subject)
-      @proxy = create_proxy(@subject)
+    def actor_proxy
+      @actor.proxy
+    end
+
+    def handle(*patterns, &block)
+      @actor.handle(*patterns, &block)
+    end
+
+    def task(task_type, exclusively, &block)
+      if exclusively
+        exclusive { block.call }
+      else
+        @actor.task(task_type, &block)
+      end
     end
   end
 end

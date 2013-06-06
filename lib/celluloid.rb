@@ -147,8 +147,7 @@ module Celluloid
   module ClassMethods
     # Create a new actor
     def new(*args, &block)
-      proxy = SingleCellActor.new(actor_options.merge(:subject => allocate)).cell_proxy
-      # TODO: should this be via the Mailbox protocol
+      proxy = CellActor.new(actor_options.merge(:subject => allocate)).proxy
       proxy._send_(:initialize, *args, &block)
       proxy
     end
@@ -158,7 +157,7 @@ module Celluloid
     def new_link(*args, &block)
       raise NotActorError, "can't link outside actor context" unless Celluloid.actor?
 
-      proxy = SingleCellActor.new(actor_options.merge(:subject => allocate)).call_proxy
+      proxy = CellActor.new(actor_options.merge(:subject => allocate)).proxy
       Actor.link(proxy)
       proxy._send_(:initialize, *args, &block)
       proxy
@@ -406,6 +405,11 @@ module Celluloid
     Actor.current
   end
 
+  # Obtain the current_actor
+  def current_cell
+    Cell.current
+  end
+
   # Obtain the UUID of the current call chain
   def call_chain_id
     CallChain.current_id
@@ -518,12 +522,12 @@ module Celluloid
 
   # Handle async calls within an actor itself
   def async(meth = nil, *args, &block)
-    Thread.current[:celluloid_actor].proxy.async meth, *args, &block
+    Thread.current[:celluloid_cell].proxy.async meth, *args, &block
   end
 
   # Handle calls to future within an actor itself
   def future(meth = nil, *args, &block)
-    Thread.current[:celluloid_actor].proxy.future meth, *args, &block
+    Thread.current[:celluloid_cell].proxy.future meth, *args, &block
   end
 end
 
@@ -564,6 +568,7 @@ require 'celluloid/proxies/block_proxy'
 
 require 'celluloid/actor'
 require 'celluloid/cell_actor'
+require 'celluloid/cell'
 require 'celluloid/future'
 require 'celluloid/pool_manager'
 require 'celluloid/supervision_group'

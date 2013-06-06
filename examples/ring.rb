@@ -19,7 +19,7 @@ class Ring
   end
 
   def initialize(size)
-    @node = Node.new_link current_actor
+    @node = Node.new_link current_cell
 
     size.times do
       @node = Node.new_link @node

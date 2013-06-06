@@ -60,7 +60,7 @@ module Celluloid
       @members = []
       @registry = registry || Registry.root
 
-      yield current_actor if block_given?
+      yield current_cell if block_given?
     end
 
     execute_block_on_receiver :initialize, :supervise, :supervise_as
@@ -92,7 +92,7 @@ module Celluloid
 
     # Terminate the group
     def finalize
-      @members.reverse_each(&:terminate)
+      @members.reverse_each(&:terminate) if @members
     end
 
     # Restart a crashed actor

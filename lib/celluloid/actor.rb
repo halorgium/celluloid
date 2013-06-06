@@ -132,10 +132,8 @@ module Celluloid
     end
 
     def initialize(options = {})
-      Logger.info "actor options: #{options.keys.inspect}"
       @behavior     = options[:behavior]
       @mailbox      = options[:mailbox] || Mailbox.new
-      @exit_handler = options[:exit_handler]
       @task_class   = options[:task_class] || Celluloid.task_class
 
       @tasks     = TaskSet.new
@@ -152,9 +150,9 @@ module Celluloid
       handle(SystemEvent) do |message|
         handle_system_event message
       end
+    end
 
-      @behavior.setup(options) if @behavior.respond_to?(:before_spawn)
-
+    def start
       @running = true
       @thread = ThreadHandle.new(:actor) do
         setup_thread
@@ -162,7 +160,6 @@ module Celluloid
       end
 
       @proxy = ActorProxy.new(@thread, @mailbox)
-      @behavior.after_spawn(options) if @behavior.respond_to?(:after_spawn)
     end
 
     def setup_thread
@@ -328,7 +325,8 @@ module Celluloid
     def handle_system_event(event)
       case event
       when ExitEvent
-        task(:exit_handler, @exit_handler) { handle_exit_event event }
+        # TODO: @exit_handler is in CellActor
+        task(:exit_handler) { handle_exit_event event }
       when LinkingRequest
         event.process(links)
       when NamingRequest
@@ -343,9 +341,9 @@ module Celluloid
     # Handle exit events received by this actor
     def handle_exit_event(event)
       @links.delete event.actor
+      Logger.info "handling exit event: #{event.inspect}"
 
-      # Run the exit handler if available
-      return @subject.send(@exit_handler, event.actor, event.reason) if @exit_handler
+      return @behavior.handle_exit_event(event) if @behavior.handling_exit_events?
 
       # Reraise exceptions from linked actors
       # If no reason is given, actor terminated cleanly
@@ -354,45 +352,20 @@ module Celluloid
 
     # Handle any exceptions that occur within a running actor
     def handle_crash(exception)
-      Logger.crash("#{@subject.class} crashed!", exception)
+      # TODO: add meta info
+      Logger.crash("Actor crashed!", exception)
       shutdown ExitEvent.new(@proxy, exception)
     rescue => ex
-      Logger.crash("#{@subject.class}: ERROR HANDLER CRASHED!", ex)
+      Logger.crash("ERROR HANDLER CRASHED!", ex)
     end
 
     # Handle cleaning up this actor after it exits
     def shutdown(exit_event = ExitEvent.new(@proxy))
-      run_finalizers
+      @behavior.shutdown
       cleanup exit_event
     ensure
       Thread.current[:celluloid_actor]   = nil
       Thread.current[:celluloid_mailbox] = nil
-    end
-
-    # Run the user-defined finalizer, if one is set
-    def run_finalizers
-      if @subjects
-        @subjects.each do |uuid,subject|
-          run_finalizer(subject)
-        end
-      end
-    end
-
-    def run_finalizer(subject)
-      # FIXME: remove before Celluloid 1.0
-      if subject.respond_to?(:finalize) && subject.class.finalizer != :finalize
-        Logger.warn("DEPRECATION WARNING: #{subject.class}#finalize is deprecated and will be removed in Celluloid 1.0. " +
-          "Define finalizers with '#{subject.class}.finalizer :callback.'")
-
-        task(:finalizer, :finalize) { subject.finalize }
-      end
-
-      finalizer = subject.class.finalizer
-      if finalizer && subject.respond_to?(finalizer, true)
-        task(:finalizer, :finalize) { subject.__send__(finalizer) }
-      end
-    rescue => ex
-      Logger.crash("#{subject.class}#finalize crashed!", ex)
     end
 
     # Clean up after this actor
@@ -406,7 +379,8 @@ module Celluloid
 
       tasks.each { |task| task.terminate }
     rescue => ex
-      Logger.crash("#{@subject.class}: CLEANUP CRASHED!", ex)
+      # TODO: metadata
+      Logger.crash("CLEANUP CRASHED!", ex)
     end
 
     # Run a method inside a task unless it's exclusive

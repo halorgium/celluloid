@@ -90,7 +90,7 @@ class Smoker
   # Sit down at the table
   def sit(table)
     @table = table
-    @table.async.welcome(Actor.current)
+    @table.async.welcome(Cell.current)
   end
 
   def sat_down
@@ -233,7 +233,7 @@ class Table
 
   def initialize
     @smokers = []
-    @waitress = Waitress.new(Actor.current) # Always use Actor.current instead of self!
+    @waitress = Waitress.new(Cell.current)# Always use Cell.current instead of self!
     @items = nil
   end
 

@@ -2,12 +2,12 @@ module Celluloid
   # A proxy object returned from Celluloid::Actor.new/new_link which converts
   # the normal Ruby method protocol into an inter-actor message protocol
   class CellProxy < SyncProxy
-    def initialize(actor_proxy, mailbox, klass, uuid)
-      super(mailbox, klass, uuid)
+    def initialize(actor_proxy, mailbox, klass)
+      super(mailbox, klass)
       @actor_proxy  = actor_proxy
-      @sync_proxy   = SyncProxy.new(mailbox, klass, uuid)
-      @async_proxy  = AsyncProxy.new(mailbox, klass, uuid)
-      @future_proxy = FutureProxy.new(mailbox, klass, uuid)
+      @sync_proxy   = SyncProxy.new(mailbox, klass)
+      @async_proxy  = AsyncProxy.new(mailbox, klass)
+      @future_proxy = FutureProxy.new(mailbox, klass)
     end
 
     def class
@@ -52,10 +52,6 @@ module Celluloid
       Method.new(self, name)
     end
 
-    def alive?
-      @actor_proxy.alive?
-    end
-
     def to_s
       method_missing :to_s
     end
@@ -78,6 +74,14 @@ module Celluloid
       else
         @future_proxy
       end
+    end
+
+    def alive?
+      @actor_proxy.alive?
+    end
+
+    def thread
+      @actor_proxy.thread
     end
 
     # Terminate the associated actor

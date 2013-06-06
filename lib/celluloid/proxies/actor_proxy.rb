@@ -1,7 +1,7 @@
 module Celluloid
   # A proxy which controls the Actor lifecycle
   class ActorProxy < AbstractProxy
-    attr_reader :thread
+    attr_reader :thread, :mailbox
 
     def initialize(thread, mailbox)
       @thread = thread
@@ -10,9 +10,9 @@ module Celluloid
 
     def inspect
       # TODO: use a system event to fetch actor state
-      "#<Celluloid::Actor(#{@mailbox.uuid}) SOME USEFUL DATA>"
+      "#<Celluloid::Actor(#{@mailbox.address}) SOME USEFUL DATA>"
     rescue DeadActorError
-      "#<Celluloid::Actor(#{@mailbox.uuid}) dead>"
+      "#<Celluloid::Actor(#{@mailbox.address}) dead>"
     end
 
     def alive?

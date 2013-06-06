@@ -64,7 +64,7 @@ module Celluloid
       @state = self.class.default_state
       @delayed_transition = nil
       @actor = actor
-      @actor ||= Celluloid.current_actor if Celluloid.actor?
+      @actor ||= Celluloid.current_cell if Celluloid.actor?
     end
 
     # Obtain the current state of the FSM
