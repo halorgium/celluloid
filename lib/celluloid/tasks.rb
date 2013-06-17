@@ -34,6 +34,7 @@ module Celluloid
       @status   = :new
 
       @dangerous_suspend = @meta ? @meta.delete(:dangerous_suspend) : false
+      @exclusive         = @meta ? @meta.delete(:exclusive) : false
 
       actor     = Thread.current[:celluloid_actor]
       @chain_id = CallChain.current_id
@@ -65,6 +66,8 @@ module Celluloid
 
     # Suspend the current task, changing the status to the given argument
     def suspend(status)
+      raise "Cannot suspend while in exclusive mode" if exclusive?
+
       @status = status
 
       if @dangerous_suspend
@@ -93,6 +96,11 @@ module Celluloid
       else
         raise DeadTaskError, "task is already dead"
       end
+    end
+
+    # Is this actor running in exclusive mode?
+    def exclusive?
+      @exclusive
     end
 
     def backtrace
@@ -138,3 +146,4 @@ end
 
 require 'celluloid/tasks/task_fiber'
 require 'celluloid/tasks/task_thread'
+require 'celluloid/tasks/exclusive_task'

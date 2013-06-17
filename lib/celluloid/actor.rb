@@ -190,21 +190,13 @@ module Celluloid
       @running = false
     end
 
-    # Is this actor running in exclusive mode?
-    def exclusive?
-      @exclusive
-    end
-
     # Execute a code block in exclusive mode.
     def exclusive
-      if @exclusive
+      if Celluloid.exclusive?
         yield
       else
-        begin
-          @exclusive = true
+        task(:exclusive, :class => ExclusiveTask) do
           yield
-        ensure
-          @exclusive = false
         end
       end
     end
@@ -416,11 +408,12 @@ module Celluloid
     # Run a method inside a task unless it's exclusive
     def task(task_type, meta = nil, &block)
       method_name = meta && meta.fetch(:method_name, nil)
+      task_class = (meta && meta.delete(:class)) || @task_class
       if @exclusives && (@exclusives == :all || (method_name && @exclusives.include?(method_name.to_sym)))
-        exclusive { block.call }
-      else
-        @task_class.new(task_type, meta, &block).resume
+        task_class = ExclusiveTask
       end
+
+      task_class.new(task_type, meta, &block).resume
     end
   end
 end

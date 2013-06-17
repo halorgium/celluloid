@@ -492,8 +492,8 @@ module Celluloid
 
   # Are we currently exclusive
   def exclusive?
-    actor = Thread.current[:celluloid_actor]
-    actor && actor.exclusive?
+    task = Thread.current[:celluloid_task]
+    task && task.exclusive?
   end
 
   # Call a block after a given interval, returning a Celluloid::Timer object
