@@ -487,7 +487,7 @@ module Celluloid
   # Run given block in an exclusive mode: all synchronous calls block the whole
   # actor, not only current message processing.
   def exclusive(&block)
-    Thread.current[:celluloid_actor].exclusive(&block)
+    Thread.current[:celluloid_task].exclusive(&block)
   end
 
   # Are we currently exclusive

@@ -190,20 +190,9 @@ module Celluloid
       @running = false
     end
 
-    # Execute a code block in exclusive mode.
-    def exclusive
-      if Celluloid.exclusive?
-        yield
-      else
-        task(:exclusive, :class => ExclusiveTask) do
-          yield
-        end
-      end
-    end
-
     # Perform a linking request with another actor
     def linking_request(receiver, type)
-      exclusive do
+      Celluloid.exclusive do
         start_time = Time.now
         receiver.mailbox << LinkingRequest.new(Actor.current, type)
         system_events = []
@@ -400,20 +389,21 @@ module Celluloid
         end
       end
 
-      tasks.each { |task| task.terminate }
+      tasks.each { |task| task.terminate unless task.type == :root }
     rescue => ex
       Logger.crash("#{@subject.class}: CLEANUP CRASHED!", ex)
     end
 
     # Run a method inside a task unless it's exclusive
-    def task(task_type, meta = nil, &block)
+    def task(task_type, meta = nil)
       method_name = meta && meta.fetch(:method_name, nil)
-      task_class = (meta && meta.delete(:class)) || @task_class
-      if @exclusives && (@exclusives == :all || (method_name && @exclusives.include?(method_name.to_sym)))
-        task_class = ExclusiveTask
-      end
-
-      task_class.new(task_type, meta, &block).resume
+      @task_class.new(task_type, meta) {
+        if @exclusives && (@exclusives == :all || (method_name && @exclusives.include?(method_name.to_sym)))
+          Celluloid.exclusive { yield }
+        else
+          yield
+        end
+      }.resume
     end
   end
 end
