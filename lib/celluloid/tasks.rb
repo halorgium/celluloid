@@ -46,7 +46,9 @@ module Celluloid
           @status = :running
           actor.setup_thread
 
+          original_task = Thread.current[:celluloid_task]
           Thread.current[:celluloid_task] = self
+          original_chain_id = CallChain.current_id
           CallChain.current_id = @chain_id
 
           actor.tasks << self
@@ -54,6 +56,9 @@ module Celluloid
         rescue Task::TerminatedError
           # Task was explicitly terminated
         ensure
+          CallChain.current_id = original_chain_id
+          Thread.current[:celluloid_task] = original_task
+
           @status = :dead
           actor.tasks.delete self
         end
@@ -90,6 +95,8 @@ module Celluloid
 
     # Terminate this task
     def terminate
+      raise "Cannot terminate an exclusive task" if exclusive?
+
       if running?
         Celluloid.logger.warn "Terminating task: type=#{@type.inspect}, meta=#{@meta.inspect}, status=#{@status.inspect}"
         resume Task::TerminatedError.new("task was terminated")

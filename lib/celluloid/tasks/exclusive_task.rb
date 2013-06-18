@@ -7,11 +7,16 @@ module Celluloid
     end
 
     def create(&block)
+      @thread = Actor.current.thread
       @block = block
     end
 
     def resume
       @block.call
+    end
+
+    def backtrace
+      @thread.backtrace
     end
   end
 end

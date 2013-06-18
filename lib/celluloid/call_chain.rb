@@ -3,7 +3,7 @@ module Celluloid
     def self.current_id=(value)
       Thread.current[:celluloid_chain_id] = value
       task = Thread.current[:celluloid_task]
-      task.chain_id = value if task
+      task.chain_id = value
     end
 
     def self.current_id
