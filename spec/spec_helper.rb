@@ -5,6 +5,8 @@ require 'celluloid/rspec'
 require 'coveralls'
 Coveralls.wear!
 
+Thread.abort_on_exception = true
+
 logfile = File.open(File.expand_path("../../log/test.log", __FILE__), 'a')
 logfile.sync = true
 
@@ -23,45 +25,46 @@ RSpec.configure do |config|
   config.around(:each) do |example|
     full_description = example.metadata[:full_description]
     Celluloid.logger.info "example: #{full_description.inspect}"
+
     ignored = [
     ]
     case full_description
     when *ignored
       Celluloid.logger.info "ignoring"
-    else
-      Celluloid.logger.info "cleaning up"
-      Celluloid.logger = logger
-      Celluloid.shutdown
-      sleep 0.01
-
-      Celluloid.internal_pool.assert_inactive
-
-      Celluloid.boot
-      Celluloid.logger.info "running"
-      mutex = Mutex.new
-      condition = ConditionVariable.new
-      $spec_thread = Thread.new {
-        mutex.synchronize {
-          begin
-            $stderr.print "before example\n"
-            example.run
-            $stderr.print "after example\n"
-          rescue Exception => ex
-            $stderr.print "Got an exception with spec thread\n#{ex.inspect}\n#{ex.backtrace.join("\n")}"
-          end
-          condition.signal
-        }
-      }
-      mutex.synchronize {
-        condition.wait(mutex, 1)
-        if $spec_thread.alive?
-          $stderr.print "spec thread is still alive, killing\n"
-          $spec_thread.kill
-        end
-      }
-      Celluloid.logger.info "finished"
+      next
     end
 
+    Celluloid.logger.info "cleaning up"
+    Celluloid.logger = logger
+    Celluloid.shutdown
+    sleep 0.01
+
+    Celluloid.internal_pool.assert_inactive
+
+    Celluloid.boot
+    Celluloid.logger.info "running"
+    mutex = Mutex.new
+    condition = ConditionVariable.new
+    $spec_thread = Thread.new {
+      mutex.synchronize {
+        begin
+          $stderr.print "before example\n"
+          example.run
+          $stderr.print "after example\n"
+        rescue Exception => ex
+          $stderr.print "Got an exception with spec thread\n#{ex.inspect}\n#{ex.backtrace.join("\n")}"
+        end
+        condition.signal
+      }
+    }
+    mutex.synchronize {
+      condition.wait(mutex, 1)
+      if $spec_thread.alive?
+        $stderr.print "spec thread is still alive, killing\n"
+        $spec_thread.kill
+      end
+    }
+    Celluloid.logger.info "finished"
   end
 end
 
