@@ -17,6 +17,13 @@ module Celluloid
       end
     end
 
+    def self.create(actor_options, behavior_options, subject, initialize_args, initialize_block)
+      proxy = Actor.new(actor_options, behavior_options.merge(:class => self, :subject => subject)).behavior_proxy
+      proxy._send_(:initialize, *initialize_args, &initialize_block)
+      yield proxy if block_given?
+      proxy
+    end
+
     def initialize(options)
       @actor                      = options.fetch(:actor)
       @subject                    = options.fetch(:subject)
