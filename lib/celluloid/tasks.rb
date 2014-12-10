@@ -41,7 +41,8 @@ module Celluloid
       @chain_id = CallChain.current_id
 
       raise NotActorError, "can't create tasks outside of actors" unless actor
-      guard "can't create tasks inside of tasks" if Thread.current[:celluloid_task]
+      task = Thread.current[:celluloid_task]
+      guard "can't create tasks inside of tasks" if task && task != self
 
       create do
         begin
@@ -59,6 +60,7 @@ module Celluloid
           # Task was explicitly terminated
         ensure
           name_current_thread nil
+          Thread.current[:celluloid_task] = nil
           @status = :dead
           actor.tasks.delete self
         end
@@ -92,7 +94,8 @@ module Celluloid
 
     # Resume a suspended task, giving it a value to return if needed
     def resume(value = nil)
-      guard "Cannot resume a task from inside of a task" if Thread.current[:celluloid_task]
+      task = Thread.current[:celluloid_task]
+      guard "Cannot resume a task from inside of a task" if task && task != self
       deliver(value)
       nil
     end
@@ -174,3 +177,4 @@ end
 
 require 'celluloid/tasks/task_fiber'
 require 'celluloid/tasks/task_thread'
+require 'celluloid/tasks/task_inline'
