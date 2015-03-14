@@ -82,7 +82,10 @@ module Celluloid
 
     # Format an exception message
     def format_exception(exception)
-      str = "#{exception.class}: #{exception.to_s}\n\t"
+      klass = exception.class.name
+      ex = "foo"
+      ex = exception.to_s unless $DISABLE_EXCEPTION_DETAIL
+      str = "#{klass}: #{ex}\n\t"
       if exception.backtrace
         str << exception.backtrace.join("\n\t")
       else

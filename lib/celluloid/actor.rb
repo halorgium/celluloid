@@ -317,6 +317,7 @@ module Celluloid
     # Handle any exceptions that occur within a running actor
     def handle_crash(exception)
       # TODO: add meta info
+      #binding.pry
       Logger.crash("Actor crashed!", exception)
       shutdown ExitEvent.new(behavior_proxy, exception)
     rescue => ex
